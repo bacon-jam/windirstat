@@ -202,8 +202,8 @@ inline std::span<const RouteEntry> CDrivesList::Routes()
 {
     static constexpr std::array entries
     {
-        Route::ReflectNotify<&OnLvnDeleteItem>(LVN_DELETEITEM),
-        Route::ReflectNotify<&OnDoubleClick>(NM_DBLCLK),
+        Route::ReflectNotify<&CDrivesList::OnLvnDeleteItem>(LVN_DELETEITEM),
+        Route::ReflectNotify<&CDrivesList::OnDoubleClick>(NM_DBLCLK),
     };
     return entries;
 }
@@ -212,24 +212,24 @@ inline std::span<const RouteEntry> CSelectDrivesDlg::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Control<&OnBnClickedBrowseButton>(STN_CLICKED, IDC_BROWSE_BUTTON),
-        Route::Control<&OnBnClickedAddFolder>(STN_CLICKED, IDC_ADD_FOLDER),
-        Route::Control<&OnBnClickedFilterButton>(STN_CLICKED, IDC_FILTER_BUTTON),
-        Route::Control<&OnBnClickedFastScanCheckbox>(BN_CLICKED, IDC_FAST_SCAN_CHECKBOX),
-        Route::Control<&OnBnClickedRadioTargetDrivesAll>(BN_CLICKED, IDC_RADIO_TARGET_DRIVES_ALL),
-        Route::Control<&OnBnClickedRadioTargetDrivesSubset>(BN_CLICKED, IDC_RADIO_TARGET_DRIVES_SUBSET),
-        Route::Control<&OnBnClickedRadioTargetFolder>(BN_CLICKED, IDC_RADIO_TARGET_FOLDER),
-        Route::Control<&OnBnClickedUpdateButtons>(BN_CLICKED, IDC_SCAN_DUPLICATES),
-        Route::Control<&OnBnDoubleclickedRadio>(BN_DOUBLECLICKED, IDC_RADIO_TARGET_DRIVES_ALL),
-        Route::Control<&OnBnDoubleclickedRadio>(BN_DOUBLECLICKED, IDC_RADIO_TARGET_DRIVES_SUBSET),
-        Route::Control<&OnBnDoubleclickedRadio>(BN_DOUBLECLICKED, IDC_RADIO_TARGET_FOLDER),
-        Route::Control<&OnEditchangeBrowseFolder>(CBN_EDITCHANGE, IDC_BROWSE_FOLDER),
-        Route::Control<&OnSelchangeBrowseFolder>(CBN_SELCHANGE, IDC_BROWSE_FOLDER),
-        Route::Notify<&OnLvnItemChangedDrives>(LVN_ITEMCHANGED, IDC_TARGET_DRIVES_LIST),
-        Route::Notify<&OnNMSetfocusTargetDrivesList>(NM_SETFOCUS, IDC_TARGET_DRIVES_LIST),
-        Route::Window<&OnWmuOk>(WM_WDS_SELECT_DRIVES_OK),
-        Route::Window<&OnTimer>(WM_TIMER),
-        Route::Window<&OnSysColorChange>(WM_SYSCOLORCHANGE),
+        Route::Control<&CSelectDrivesDlg::OnBnClickedBrowseButton>(STN_CLICKED, IDC_BROWSE_BUTTON),
+        Route::Control<&CSelectDrivesDlg::OnBnClickedAddFolder>(STN_CLICKED, IDC_ADD_FOLDER),
+        Route::Control<&CSelectDrivesDlg::OnBnClickedFilterButton>(STN_CLICKED, IDC_FILTER_BUTTON),
+        Route::Control<&CSelectDrivesDlg::OnBnClickedFastScanCheckbox>(BN_CLICKED, IDC_FAST_SCAN_CHECKBOX),
+        Route::Control<&CSelectDrivesDlg::OnBnClickedRadioTargetDrivesAll>(BN_CLICKED, IDC_RADIO_TARGET_DRIVES_ALL),
+        Route::Control<&CSelectDrivesDlg::OnBnClickedRadioTargetDrivesSubset>(BN_CLICKED, IDC_RADIO_TARGET_DRIVES_SUBSET),
+        Route::Control<&CSelectDrivesDlg::OnBnClickedRadioTargetFolder>(BN_CLICKED, IDC_RADIO_TARGET_FOLDER),
+        Route::Control<&CSelectDrivesDlg::OnBnClickedUpdateButtons>(BN_CLICKED, IDC_SCAN_DUPLICATES),
+        Route::Control<&CSelectDrivesDlg::OnBnDoubleclickedRadio>(BN_DOUBLECLICKED, IDC_RADIO_TARGET_DRIVES_ALL),
+        Route::Control<&CSelectDrivesDlg::OnBnDoubleclickedRadio>(BN_DOUBLECLICKED, IDC_RADIO_TARGET_DRIVES_SUBSET),
+        Route::Control<&CSelectDrivesDlg::OnBnDoubleclickedRadio>(BN_DOUBLECLICKED, IDC_RADIO_TARGET_FOLDER),
+        Route::Control<&CSelectDrivesDlg::OnEditchangeBrowseFolder>(CBN_EDITCHANGE, IDC_BROWSE_FOLDER),
+        Route::Control<&CSelectDrivesDlg::OnSelchangeBrowseFolder>(CBN_SELCHANGE, IDC_BROWSE_FOLDER),
+        Route::Notify<&CSelectDrivesDlg::OnLvnItemChangedDrives>(LVN_ITEMCHANGED, IDC_TARGET_DRIVES_LIST),
+        Route::Notify<&CSelectDrivesDlg::OnNMSetfocusTargetDrivesList>(NM_SETFOCUS, IDC_TARGET_DRIVES_LIST),
+        Route::Window<&CSelectDrivesDlg::OnWmuOk>(WM_WDS_SELECT_DRIVES_OK),
+        Route::Window<&CSelectDrivesDlg::OnTimer>(WM_TIMER),
+        Route::Window<&CSelectDrivesDlg::OnSysColorChange>(WM_SYSCOLORCHANGE),
     };
     return entries;
 }
@@ -238,16 +238,16 @@ inline std::span<const RouteEntry> CSelectCloudDlg::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Control<&OnNew>(BN_CLICKED, IDC_REMOTE_NEW),
-        Route::Control<&OnEdit>(BN_CLICKED, IDC_REMOTE_EDIT),
-        Route::Control<&OnRemove>(BN_CLICKED, IDC_REMOTE_REMOVE),
-        Route::Notify<&OnSelectionChanged>(LVN_ITEMCHANGED, IDC_REMOTE_RECENT),
-        Route::Notify<&OnSelectionChanged>(LVN_ODSTATECHANGED, IDC_REMOTE_RECENT),
-        Route::Notify<&OnDoubleClick>(NM_DBLCLK, IDC_REMOTE_RECENT),
-        Route::Notify<&OnListKeyDown>(LVN_KEYDOWN, IDC_REMOTE_RECENT),
-        Route::Notify<&OnDisplayInfo>(LVN_GETDISPINFO, IDC_REMOTE_RECENT),
-        Route::Window<&OnSize>(WM_SIZE),
-        Route::Window<&OnDestroy>(WM_DESTROY),
+        Route::Control<&CSelectCloudDlg::OnNew>(BN_CLICKED, IDC_REMOTE_NEW),
+        Route::Control<&CSelectCloudDlg::OnEdit>(BN_CLICKED, IDC_REMOTE_EDIT),
+        Route::Control<&CSelectCloudDlg::OnRemove>(BN_CLICKED, IDC_REMOTE_REMOVE),
+        Route::Notify<&CSelectCloudDlg::OnSelectionChanged>(LVN_ITEMCHANGED, IDC_REMOTE_RECENT),
+        Route::Notify<&CSelectCloudDlg::OnSelectionChanged>(LVN_ODSTATECHANGED, IDC_REMOTE_RECENT),
+        Route::Notify<&CSelectCloudDlg::OnDoubleClick>(NM_DBLCLK, IDC_REMOTE_RECENT),
+        Route::Notify<&CSelectCloudDlg::OnListKeyDown>(LVN_KEYDOWN, IDC_REMOTE_RECENT),
+        Route::Notify<&CSelectCloudDlg::OnDisplayInfo>(LVN_GETDISPINFO, IDC_REMOTE_RECENT),
+        Route::Window<&CSelectCloudDlg::OnSize>(WM_SIZE),
+        Route::Window<&CSelectCloudDlg::OnDestroy>(WM_DESTROY),
     };
     return entries;
 }

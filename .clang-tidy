@@ -1,0 +1,10 @@
+Checks: >-
+  -*,
+  performance-*,
+  -performance-no-int-to-ptr,
+  -performance-enum-size,
+  bugprone-use-after-move,
+  bugprone-move-forwarding-reference,
+  bugprone-dangling-handle
+HeaderFilterRegex: '[/\\]windirstat[/\\]'
+FormatStyle: none

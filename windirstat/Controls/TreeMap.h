@@ -412,7 +412,7 @@ inline std::span<const RouteEntry> CTreeMapPreview::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnPaint>(WM_PAINT),
+        Route::Window<&CTreeMapPreview::OnPaint>(WM_PAINT),
     };
     return entries;
 }

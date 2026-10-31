@@ -200,21 +200,21 @@ inline std::span<const RouteEntry> CWdsListControl::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnSelectionChanged>(WM_SELECTION_CHANGED),
-        Route::Notify<&OnHdnBeginTrack>(HDN_BEGINTRACK, 0),
-        Route::Notify<&OnHdnDividerdblclick>(HDN_DIVIDERDBLCLICK, 0),
-        Route::Notify<&OnHdnItemchanging>(HDN_ITEMCHANGING, 0),
-        Route::Notify<&OnHdnItemClick>(HDN_ITEMCLICK, 0),
-        Route::Notify<&OnHdnItemDblClick>(HDN_ITEMDBLCLICK, 0),
-        Route::Notify<&OnCustomDraw>(NM_CUSTOMDRAW, 0),
-        Route::ReflectNotify<&OnLvnGetDispInfo>(LVN_GETDISPINFO),
-        Route::Window<&OnContextMenu>(WM_CONTEXTMENU),
-        Route::Window<&OnDestroy>(WM_DESTROY),
-        Route::Window<&OnPaint>(WM_PAINT),
-        Route::Window<&OnPaint>(WM_PRINTCLIENT),
-        Route::Window<&OnEraseBkgnd>(WM_ERASEBKGND),
-        Route::Window<&OnSettingChange>(WM_SETTINGCHANGE),
-        Route::Window<&OnSetFont>(WM_SETFONT),
+        Route::Window<&CWdsListControl::OnSelectionChanged>(WM_SELECTION_CHANGED),
+        Route::Notify<&CWdsListControl::OnHdnBeginTrack>(HDN_BEGINTRACK, 0),
+        Route::Notify<&CWdsListControl::OnHdnDividerdblclick>(HDN_DIVIDERDBLCLICK, 0),
+        Route::Notify<&CWdsListControl::OnHdnItemchanging>(HDN_ITEMCHANGING, 0),
+        Route::Notify<&CWdsListControl::OnHdnItemClick>(HDN_ITEMCLICK, 0),
+        Route::Notify<&CWdsListControl::OnHdnItemDblClick>(HDN_ITEMDBLCLICK, 0),
+        Route::Notify<&CWdsListControl::OnCustomDraw>(NM_CUSTOMDRAW, 0),
+        Route::ReflectNotify<&CWdsListControl::OnLvnGetDispInfo>(LVN_GETDISPINFO),
+        Route::Window<&CWdsListControl::OnContextMenu>(WM_CONTEXTMENU),
+        Route::Window<&CWdsListControl::OnDestroy>(WM_DESTROY),
+        Route::Window<&CWdsListControl::OnPaint>(WM_PAINT),
+        Route::Window<&CWdsListControl::OnPaint>(WM_PRINTCLIENT),
+        Route::Window<&CWdsListControl::OnEraseBkgnd>(WM_ERASEBKGND),
+        Route::Window<&CWdsListControl::OnSettingChange>(WM_SETTINGCHANGE),
+        Route::Window<&CWdsListControl::OnSetFont>(WM_SETFONT),
     };
     return entries;
 }

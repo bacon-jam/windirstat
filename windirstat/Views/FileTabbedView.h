@@ -94,11 +94,11 @@ inline std::span<const RouteEntry> CFileTabbedView::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnCreate>(WM_CREATE),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
-        Route::Window<&OnSize>(WM_SIZE),
-        Route::Window<&OnEraseBkgnd>(WM_ERASEBKGND),
-        Route::Window<&OnChangeActiveTab>(WM_WDS_TAB_CHANGED),
+        Route::Window<&CFileTabbedView::OnCreate>(WM_CREATE),
+        Route::Window<&CFileTabbedView::OnSetFocus>(WM_SETFOCUS),
+        Route::Window<&CFileTabbedView::OnSize>(WM_SIZE),
+        Route::Window<&CFileTabbedView::OnEraseBkgnd>(WM_ERASEBKGND),
+        Route::Window<&CFileTabbedView::OnChangeActiveTab>(WM_WDS_TAB_CHANGED),
     };
     return entries;
 }

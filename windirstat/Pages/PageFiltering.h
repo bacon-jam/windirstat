@@ -58,12 +58,12 @@ inline std::span<const RouteEntry> CPageFiltering::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Control<&OnSettingChanged>(EN_CHANGE, IDC_FILTERING_EXCLUDE_DIRS, IDC_FILTERING_INCLUDE_FILES),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_FILTERING_USE_REGEX),
-        Route::Control<&OnSettingChanged>(EN_CHANGE, IDC_FILTERING_SIZE_MIN),
-        Route::Control<&OnSettingChanged>(EN_CHANGE, IDC_FILTERING_MAX_AGE_DAYS, IDC_FILTERING_MIN_UNITS),
-        Route::Control<&OnSettingChanged>(CBN_SELENDOK, IDC_FILTERING_MIN_UNITS, IDC_FILTERING_SIZE_COMPARISON),
-        Route::Control<&OnSettingChanged>(CBN_SELENDOK, IDC_FILTERING_MAX_AGE_COMPARISON),
+        Route::Control<&CPageFiltering::OnSettingChanged>(EN_CHANGE, IDC_FILTERING_EXCLUDE_DIRS, IDC_FILTERING_INCLUDE_FILES),
+        Route::Control<&CPageFiltering::OnSettingChanged>(BN_CLICKED, IDC_FILTERING_USE_REGEX),
+        Route::Control<&CPageFiltering::OnSettingChanged>(EN_CHANGE, IDC_FILTERING_SIZE_MIN),
+        Route::Control<&CPageFiltering::OnSettingChanged>(EN_CHANGE, IDC_FILTERING_MAX_AGE_DAYS, IDC_FILTERING_MIN_UNITS),
+        Route::Control<&CPageFiltering::OnSettingChanged>(CBN_SELENDOK, IDC_FILTERING_MIN_UNITS, IDC_FILTERING_SIZE_COMPARISON),
+        Route::Control<&CPageFiltering::OnSettingChanged>(CBN_SELENDOK, IDC_FILTERING_MAX_AGE_COMPARISON),
     };
     return entries;
 }

@@ -95,13 +95,13 @@ inline std::span<const RouteEntry> CExtensionListControl::Routes()
 {
     static constexpr std::array entries
     {
-        Route::ReflectNotify<&OnLvnDeleteItem>(LVN_DELETEITEM),
-        Route::ReflectNotify<&OnNMDblclk>(NM_DBLCLK),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
-        Route::ReflectNotify<&OnLvnItemChanged>(LVN_ITEMCHANGED),
-        Route::Command<&OnSearchExtension>(ID_EXTLIST_SEARCH_EXTENSION),
-        Route::Command<&OnExcludeExtension>(ID_FILTER_EXCLUDE_ITEM),
-        Route::Window<&OnKeyDown>(WM_KEYDOWN),
+        Route::ReflectNotify<&CExtensionListControl::OnLvnDeleteItem>(LVN_DELETEITEM),
+        Route::ReflectNotify<&CExtensionListControl::OnNMDblclk>(NM_DBLCLK),
+        Route::Window<&CExtensionListControl::OnSetFocus>(WM_SETFOCUS),
+        Route::ReflectNotify<&CExtensionListControl::OnLvnItemChanged>(LVN_ITEMCHANGED),
+        Route::Command<&CExtensionListControl::OnSearchExtension>(ID_EXTLIST_SEARCH_EXTENSION),
+        Route::Command<&CExtensionListControl::OnExcludeExtension>(ID_FILTER_EXCLUDE_ITEM),
+        Route::Window<&CExtensionListControl::OnKeyDown>(WM_KEYDOWN),
     };
     return entries;
 }

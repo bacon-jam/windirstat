@@ -96,6 +96,18 @@ For your safety, install WinDirStat only through the Microsoft Store link and pa
 
 WinDirStat can be built with Visual Studio 2022 or later. A Visual Studio solution file can be loaded from `windirstat.sln`.
 
+### Static analysis
+
+Run from the repository root with PowerShell 7, MSBuild 17.8 or later, the Windows SDK, MSVC/ATL headers, and Visual Studio's C++ Clang tools installed. For Visual Studio 2022:
+
+```powershell
+pwsh -File tests/Invoke-ClangTidy.ps1 -PlatformToolset v143
+```
+
+The runner evaluates the actual project configuration, generates language resources, and writes `intermediate/clang-tidy/compile_commands.json`. It supplies the project's definitions, include paths, runtime and language settings; Clang parses headers instead of trying to consume an MSVC precompiled header. No developer command prompt is needed. All project C++ translation units are selected by default. Vendored C is excluded. `-Source '*Finder*.cpp','Filtering.cpp'` selects a subset; `-GenerateOnly` just produces the database. `-Configuration Debug` checks the debug configuration.
+
+The checked-in configuration focuses on performance, moves and dangling references. Integer/pointer casts required by Win32 messaging and enum-width suggestions are excluded. Parse errors always fail; `-WarningsAsErrors` also fails enabled diagnostics. Per-file logs, YAML diagnostics and `summary.json` retain failures and selected/total coverage. The runner does not apply automatic fixes. Compilation database semantics follow the [Clang tooling format](https://clang.llvm.org/docs/JSONCompilationDatabase.html).
+
 ## Contributors
 
 You can contribute by responding to issues, [developing](https://github.com/windirstat/windirstat/wiki/Developers) source code, or developing [translations](https://github.com/windirstat/windirstat/wiki/Contribute-Translation).

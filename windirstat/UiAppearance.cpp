@@ -666,7 +666,7 @@ std::span<const RouteEntry> CButton::Routes()
 {
     static constexpr std::array entries
     {
-        Route::ReflectNotify<&OnCustomDraw>(NM_CUSTOMDRAW),
+        Route::ReflectNotify<&CButton::OnCustomDraw>(NM_CUSTOMDRAW),
     };
     return entries;
 }
@@ -697,7 +697,7 @@ std::span<const RouteEntry> CSliderCtrl::Routes()
 {
     static constexpr std::array entries
     {
-        Route::ReflectNotify<&OnCustomDraw>(NM_CUSTOMDRAW),
+        Route::ReflectNotify<&CSliderCtrl::OnCustomDraw>(NM_CUSTOMDRAW),
     };
     return entries;
 }

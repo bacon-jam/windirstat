@@ -112,15 +112,15 @@ inline std::span<const RouteEntry> CGraphView::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnSize>(WM_SIZE),
-        Route::Window<&OnLButtonDblClk>(WM_LBUTTONDBLCLK),
-        Route::Window<&OnLButtonDown>(WM_LBUTTONDOWN),
-        Route::Window<&OnMButtonDown>(WM_MBUTTONDOWN),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
-        Route::Window<&OnContextMenu>(WM_CONTEXTMENU),
-        Route::Window<&OnMouseMove>(WM_MOUSEMOVE),
-        Route::Window<&OnMouseLeave>(WM_MOUSELEAVE),
-        Route::Window<&OnMouseWheel>(WM_MOUSEWHEEL),
+        Route::Window<&CGraphView::OnSize>(WM_SIZE),
+        Route::Window<&CGraphView::OnLButtonDblClk>(WM_LBUTTONDBLCLK),
+        Route::Window<&CGraphView::OnLButtonDown>(WM_LBUTTONDOWN),
+        Route::Window<&CGraphView::OnMButtonDown>(WM_MBUTTONDOWN),
+        Route::Window<&CGraphView::OnSetFocus>(WM_SETFOCUS),
+        Route::Window<&CGraphView::OnContextMenu>(WM_CONTEXTMENU),
+        Route::Window<&CGraphView::OnMouseMove>(WM_MOUSEMOVE),
+        Route::Window<&CGraphView::OnMouseLeave>(WM_MOUSELEAVE),
+        Route::Window<&CGraphView::OnMouseWheel>(WM_MOUSEWHEEL),
     };
     return entries;
 }

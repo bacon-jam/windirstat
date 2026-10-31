@@ -46,7 +46,7 @@ inline std::span<const RouteEntry> CFilePermsControl::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnDestroy>(WM_DESTROY),
+        Route::Window<&CFilePermsControl::OnDestroy>(WM_DESTROY),
     };
     return entries;
 }

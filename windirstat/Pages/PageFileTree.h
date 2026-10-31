@@ -55,11 +55,11 @@ inline std::span<const RouteEntry> CPageFileTree::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Notify<&OnSettingChanged>(COLBN_CHANGED, IDC_COLORBUTTON0, IDC_COLORBUTTON7),
-        Route::Window<&OnVScroll>(WM_VSCROLL),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_PACMANANIMATION),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_SHOWTIMESPENT),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_TREECOL_ATTRIBUTES, IDC_TREECOL_SIZE_PHYSICAL),
+        Route::Notify<&CPageFileTree::OnSettingChanged>(COLBN_CHANGED, IDC_COLORBUTTON0, IDC_COLORBUTTON7),
+        Route::Window<&CPageFileTree::OnVScroll>(WM_VSCROLL),
+        Route::Control<&CPageFileTree::OnSettingChanged>(BN_CLICKED, IDC_PACMANANIMATION),
+        Route::Control<&CPageFileTree::OnSettingChanged>(BN_CLICKED, IDC_SHOWTIMESPENT),
+        Route::Control<&CPageFileTree::OnSettingChanged>(BN_CLICKED, IDC_TREECOL_ATTRIBUTES, IDC_TREECOL_SIZE_PHYSICAL),
     };
     return entries;
 }

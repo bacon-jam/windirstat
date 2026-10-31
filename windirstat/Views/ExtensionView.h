@@ -46,10 +46,10 @@ inline std::span<const RouteEntry> CExtensionView::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnCreate>(WM_CREATE),
-        Route::Window<&OnEraseBkgnd>(WM_ERASEBKGND),
-        Route::Window<&OnSize>(WM_SIZE),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
+        Route::Window<&CExtensionView::OnCreate>(WM_CREATE),
+        Route::Window<&CExtensionView::OnEraseBkgnd>(WM_ERASEBKGND),
+        Route::Window<&CExtensionView::OnSize>(WM_SIZE),
+        Route::Window<&CExtensionView::OnSetFocus>(WM_SETFOCUS),
     };
     return entries;
 }

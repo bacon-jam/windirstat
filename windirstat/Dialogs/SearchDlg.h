@@ -53,20 +53,20 @@ inline std::span<const RouteEntry> SearchDlg::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Control<&OnBnClickedOk>(BN_CLICKED, IDOK),
-        Route::Control<&OnChangeSearchTerm>(CBN_EDITCHANGE, IDC_SEARCH_TERM),
-        Route::Control<&OnSelectSearchTerm>(CBN_SELENDOK, IDC_SEARCH_TERM),
-        Route::Control<&OnChangeSearchTerm>(BN_CLICKED, IDC_SEARCH_REGEX),
-        Route::Control<&UpdateControlStatus>(BN_CLICKED, IDC_SEARCH_CASE),
-        Route::Control<&UpdateControlStatus>(EN_CHANGE, IDC_SEARCH_SIZE_MIN),
-        Route::Control<&UpdateControlStatus>(EN_CHANGE, IDC_SEARCH_SIZE_MAX),
-        Route::Control<&UpdateControlStatus>(CBN_SELCHANGE, IDC_SEARCH_SIZE_UNITS),
-        Route::Control<&UpdateControlStatus>(EN_CHANGE, IDC_SEARCH_PHYSICAL_MIN),
-        Route::Control<&UpdateControlStatus>(EN_CHANGE, IDC_SEARCH_PHYSICAL_MAX),
-        Route::Control<&UpdateControlStatus>(CBN_SELCHANGE, IDC_SEARCH_PHYSICAL_UNITS),
-        Route::Control<&UpdateControlStatus>(BN_CLICKED, IDC_SEARCH_FILES),
-        Route::Control<&UpdateControlStatus>(BN_CLICKED, IDC_SEARCH_FOLDERS),
-        Route::Window<&OnGetMinMaxInfo>(WM_GETMINMAXINFO),
+        Route::Control<&SearchDlg::OnBnClickedOk>(BN_CLICKED, IDOK),
+        Route::Control<&SearchDlg::OnChangeSearchTerm>(CBN_EDITCHANGE, IDC_SEARCH_TERM),
+        Route::Control<&SearchDlg::OnSelectSearchTerm>(CBN_SELENDOK, IDC_SEARCH_TERM),
+        Route::Control<&SearchDlg::OnChangeSearchTerm>(BN_CLICKED, IDC_SEARCH_REGEX),
+        Route::Control<&SearchDlg::UpdateControlStatus>(BN_CLICKED, IDC_SEARCH_CASE),
+        Route::Control<&SearchDlg::UpdateControlStatus>(EN_CHANGE, IDC_SEARCH_SIZE_MIN),
+        Route::Control<&SearchDlg::UpdateControlStatus>(EN_CHANGE, IDC_SEARCH_SIZE_MAX),
+        Route::Control<&SearchDlg::UpdateControlStatus>(CBN_SELCHANGE, IDC_SEARCH_SIZE_UNITS),
+        Route::Control<&SearchDlg::UpdateControlStatus>(EN_CHANGE, IDC_SEARCH_PHYSICAL_MIN),
+        Route::Control<&SearchDlg::UpdateControlStatus>(EN_CHANGE, IDC_SEARCH_PHYSICAL_MAX),
+        Route::Control<&SearchDlg::UpdateControlStatus>(CBN_SELCHANGE, IDC_SEARCH_PHYSICAL_UNITS),
+        Route::Control<&SearchDlg::UpdateControlStatus>(BN_CLICKED, IDC_SEARCH_FILES),
+        Route::Control<&SearchDlg::UpdateControlStatus>(BN_CLICKED, IDC_SEARCH_FOLDERS),
+        Route::Window<&SearchDlg::OnGetMinMaxInfo>(WM_GETMINMAXINFO),
     };
     return entries;
 }

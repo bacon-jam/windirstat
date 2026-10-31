@@ -190,7 +190,7 @@ public:
 
     static std::span<const RouteEntry> Routes()
     {
-        static constexpr std::array entries{ Route::Window<&OnSize>(WM_SIZE) };
+        static constexpr std::array entries{ Route::Window<&CStorageSelectionPage::OnSize>(WM_SIZE) };
         return entries;
     }
 
@@ -362,9 +362,9 @@ void CCloudConnectionDlg::OnGetMinMaxInfo(MINMAXINFO* info)
 std::span<const RouteEntry> CCloudConnectionDlg::Routes()
 {
     static constexpr std::array entries{
-        Route::Control<&OnSourceChanged>(CBN_SELCHANGE, IDC_REMOTE_PROVIDER),
-        Route::Window<&OnSize>(WM_SIZE),
-        Route::Window<&OnGetMinMaxInfo>(WM_GETMINMAXINFO)
+        Route::Control<&CCloudConnectionDlg::OnSourceChanged>(CBN_SELCHANGE, IDC_REMOTE_PROVIDER),
+        Route::Window<&CCloudConnectionDlg::OnSize>(WM_SIZE),
+        Route::Window<&CCloudConnectionDlg::OnGetMinMaxInfo>(WM_GETMINMAXINFO)
     };
     return entries;
 }

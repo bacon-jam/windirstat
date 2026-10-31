@@ -48,9 +48,9 @@ inline std::span<const RouteEntry> CVisualizationPane::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnCreate>(WM_CREATE),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
-        Route::Window<&OnSize>(WM_SIZE),
+        Route::Window<&CVisualizationPane::OnCreate>(WM_CREATE),
+        Route::Window<&CVisualizationPane::OnSetFocus>(WM_SETFOCUS),
+        Route::Window<&CVisualizationPane::OnSize>(WM_SIZE),
     };
     return entries;
 }

@@ -134,9 +134,9 @@ public:
     {
         static constexpr std::array entries
         {
-            Route::Command<&OnOK>(IDOK),
-            Route::Command<&OnCancel>(IDCANCEL),
-            Route::Window<&OnCtlColor>(WM_CTLCOLOR),
+            Route::Command<&CDialog::OnOK>(IDOK),
+            Route::Command<&CDialog::OnCancel>(IDCANCEL),
+            Route::Window<&CDialog::OnCtlColor>(WM_CTLCOLOR),
         };
         return entries;
     }

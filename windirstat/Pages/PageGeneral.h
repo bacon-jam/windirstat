@@ -51,17 +51,17 @@ inline std::span<const RouteEntry> CPageGeneral::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_AUTO_ELEVATE),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_COLUMN_AUTOSIZE),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_CONTEXT_MENU),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_FULL_ROW_SELECTION),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_PORTABLE_MODE),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_SHOW_GRID),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_SHOW_STRIPES, IDC_SHOW_TIME_SECONDS),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_SIZE_SUFFIXES),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_USE_WINDOWS_LOCALE),
-        Route::Control<&OnSettingChanged>(BN_CLICKED, IDC_DARK_MODE_DISABLED, IDC_DARK_MODE_USE_WINDOWS),
-        Route::Control<&OnSettingChanged>(CBN_SELENDOK, IDC_COMBO),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_AUTO_ELEVATE),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_COLUMN_AUTOSIZE),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_CONTEXT_MENU),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_FULL_ROW_SELECTION),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_PORTABLE_MODE),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_SHOW_GRID),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_SHOW_STRIPES, IDC_SHOW_TIME_SECONDS),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_SIZE_SUFFIXES),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_USE_WINDOWS_LOCALE),
+        Route::Control<&CPageGeneral::OnSettingChanged>(BN_CLICKED, IDC_DARK_MODE_DISABLED, IDC_DARK_MODE_USE_WINDOWS),
+        Route::Control<&CPageGeneral::OnSettingChanged>(CBN_SELENDOK, IDC_COMBO),
     };
     return entries;
 }

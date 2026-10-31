@@ -118,7 +118,7 @@ inline std::span<const RouteEntry> CSettingsPage::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnEraseBkgnd>(WM_ERASEBKGND),
+        Route::Window<&CSettingsPage::OnEraseBkgnd>(WM_ERASEBKGND),
     };
     return entries;
 }

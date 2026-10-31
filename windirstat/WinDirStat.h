@@ -88,14 +88,14 @@ inline std::span<const RouteEntry> CDirStatApp::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Command<&OnAppAbout>(ID_APP_ABOUT),
-        Route::Command<&OnSelectScanRoots>(ID_FILE_SELECT),
-        Route::Command<&OnSelectCloudRoot>(ID_FILE_SELECT_CLOUD),
-        Route::Command<&OnFilter>(ID_FILTER),
-        Route::Command<&OnRunElevated>(ID_RUN_ELEVATED),
-        Route::Update<&OnUpdateRunElevated>(ID_RUN_ELEVATED),
-        Route::Command<&OnHelpManual>(ID_HELP_MANUAL),
-        Route::Command<&OnReportBug>(ID_HELP_REPORTBUG),
+        Route::Command<&CDirStatApp::OnAppAbout>(ID_APP_ABOUT),
+        Route::Command<&CDirStatApp::OnSelectScanRoots>(ID_FILE_SELECT),
+        Route::Command<&CDirStatApp::OnSelectCloudRoot>(ID_FILE_SELECT_CLOUD),
+        Route::Command<&CDirStatApp::OnFilter>(ID_FILTER),
+        Route::Command<&CDirStatApp::OnRunElevated>(ID_RUN_ELEVATED),
+        Route::Update<&CDirStatApp::OnUpdateRunElevated>(ID_RUN_ELEVATED),
+        Route::Command<&CDirStatApp::OnHelpManual>(ID_HELP_MANUAL),
+        Route::Command<&CDirStatApp::OnReportBug>(ID_HELP_REPORTBUG),
     };
     return entries;
 }

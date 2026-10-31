@@ -292,7 +292,7 @@ public:
         else m_type = bitOp ? (m_type | type) : ((m_type & ~Mask) | type);
     }
 
-    template<typename Predicate = decltype([](const CItem* item) { return item->IsTypeOrFlag(IT_FILE); }) >
+    template<typename Predicate = decltype([](const auto* item) { return item->IsTypeOrFlag(IT_FILE); }) >
     static std::vector<CItem*> GetItemsRecursive(const std::vector<CItem*>& initialItems, Predicate&& predicate = {})
     {
         std::vector<CItem*> items;

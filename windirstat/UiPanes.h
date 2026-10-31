@@ -51,16 +51,16 @@ public:
     {
         static constexpr std::array entries
         {
-            Route::Window<&OnSize>(WM_SIZE),
-            Route::Window<&OnEraseBkgnd>(WM_ERASEBKGND),
-            Route::Window<&OnPaint>(WM_PAINT),
-            Route::Window<&OnLButtonDown>(WM_LBUTTONDOWN),
-            Route::Window<&OnLButtonUp>(WM_LBUTTONUP),
-            Route::Window<&OnMouseMove>(WM_MOUSEMOVE),
-            Route::Window<&OnCaptureChanged>(WM_CAPTURECHANGED),
-            Route::Window<&OnCancelMode>(WM_CANCELMODE),
-            Route::Window<&OnNcHitTest>(WM_NCHITTEST),
-            Route::Window<&OnSetCursor>(WM_SETCURSOR),
+            Route::Window<&CSplitterWnd::OnSize>(WM_SIZE),
+            Route::Window<&CSplitterWnd::OnEraseBkgnd>(WM_ERASEBKGND),
+            Route::Window<&CSplitterWnd::OnPaint>(WM_PAINT),
+            Route::Window<&CSplitterWnd::OnLButtonDown>(WM_LBUTTONDOWN),
+            Route::Window<&CSplitterWnd::OnLButtonUp>(WM_LBUTTONUP),
+            Route::Window<&CSplitterWnd::OnMouseMove>(WM_MOUSEMOVE),
+            Route::Window<&CSplitterWnd::OnCaptureChanged>(WM_CAPTURECHANGED),
+            Route::Window<&CSplitterWnd::OnCancelMode>(WM_CANCELMODE),
+            Route::Window<&CSplitterWnd::OnNcHitTest>(WM_NCHITTEST),
+            Route::Window<&CSplitterWnd::OnSetCursor>(WM_SETCURSOR),
         };
         return entries;
     }
@@ -407,9 +407,9 @@ public:
     {
         static constexpr std::array entries
         {
-            Route::ReflectNotify<&OnCustomDraw>(NM_CUSTOMDRAW),
-            Route::ReflectNotify<&OnGetInfoTip>(TBN_GETINFOTIPW),
-            Route::Window<&OnCtlColor>(WM_CTLCOLOR),
+            Route::ReflectNotify<&CToolBar::OnCustomDraw>(NM_CUSTOMDRAW),
+            Route::ReflectNotify<&CToolBar::OnGetInfoTip>(TBN_GETINFOTIPW),
+            Route::Window<&CToolBar::OnCtlColor>(WM_CTLCOLOR),
         };
         return entries;
     }
@@ -496,9 +496,9 @@ public:
     {
         static constexpr std::array entries
         {
-            Route::Window<&OnPaint>(WM_PAINT),
-            Route::Window<&OnEraseBkgnd>(WM_ERASEBKGND),
-            Route::Window<&OnSize>(WM_SIZE),
+            Route::Window<&CStatusBar::OnPaint>(WM_PAINT),
+            Route::Window<&CStatusBar::OnEraseBkgnd>(WM_ERASEBKGND),
+            Route::Window<&CStatusBar::OnSize>(WM_SIZE),
         };
         return entries;
     }

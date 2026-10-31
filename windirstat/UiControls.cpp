@@ -458,16 +458,16 @@ std::span<const RouteEntry> CTabControl::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnNcHitTest>(WM_NCHITTEST),
-        Route::Window<&OnSize>(WM_SIZE),
-        Route::Window<&OnEraseBkgnd>(WM_ERASEBKGND),
-        Route::Window<&OnLButtonDown>(WM_LBUTTONDOWN),
-        Route::Window<&OnLButtonUp>(WM_LBUTTONUP),
-        Route::Window<&OnKeyDown>(WM_KEYDOWN),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
-        Route::Window<&OnKillFocus>(WM_KILLFOCUS),
-        Route::Window<&OnPaint>(WM_PAINT),
-        Route::ReflectNotify<&OnTabSelectionChanged>(TCN_SELCHANGE),
+        Route::Window<&CTabControl::OnNcHitTest>(WM_NCHITTEST),
+        Route::Window<&CTabControl::OnSize>(WM_SIZE),
+        Route::Window<&CTabControl::OnEraseBkgnd>(WM_ERASEBKGND),
+        Route::Window<&CTabControl::OnLButtonDown>(WM_LBUTTONDOWN),
+        Route::Window<&CTabControl::OnLButtonUp>(WM_LBUTTONUP),
+        Route::Window<&CTabControl::OnKeyDown>(WM_KEYDOWN),
+        Route::Window<&CTabControl::OnSetFocus>(WM_SETFOCUS),
+        Route::Window<&CTabControl::OnKillFocus>(WM_KILLFOCUS),
+        Route::Window<&CTabControl::OnPaint>(WM_PAINT),
+        Route::ReflectNotify<&CTabControl::OnTabSelectionChanged>(TCN_SELCHANGE),
     };
     return entries;
 }

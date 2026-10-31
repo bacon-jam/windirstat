@@ -60,9 +60,9 @@ inline std::span<const RouteEntry> CAboutDlg::WdsTabControl::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Notify<&OnEnLinkText>(EN_LINK, ID_WDS_CONTROL),
-        Route::Notify<&OnEnMsgFilter>(EN_MSGFILTER, ID_WDS_CONTROL),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
+        Route::Notify<&WdsTabControl::OnEnLinkText>(EN_LINK, ID_WDS_CONTROL),
+        Route::Notify<&WdsTabControl::OnEnMsgFilter>(EN_MSGFILTER, ID_WDS_CONTROL),
+        Route::Window<&WdsTabControl::OnSetFocus>(WM_SETFOCUS),
     };
     return entries;
 }
@@ -71,7 +71,7 @@ inline std::span<const RouteEntry> CAboutDlg::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnTabChanged>(WM_WDS_TAB_CHANGED),
+        Route::Window<&CAboutDlg::OnTabChanged>(WM_WDS_TAB_CHANGED),
     };
     return entries;
 }

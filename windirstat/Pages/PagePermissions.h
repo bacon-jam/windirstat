@@ -37,10 +37,10 @@ inline std::span<const RouteEntry> CPagePermissions::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Notify<&OnSettingChanged>(COLBN_CHANGED, IDC_COLORBUTTON0, IDC_COLORBUTTON4),
-        Route::Control<&OnSettingChanged>(EN_CHANGE, IDC_PERMS_ACCOUNT0, IDC_PERMS_ACCOUNT4),
-        Route::Control<&OnSettingChanged>(CBN_SELCHANGE, IDC_PERMS_LEVEL0, IDC_PERMS_LEVEL4),
-        Route::Control<&OnSettingChanged>(EN_CHANGE, IDC_PERMS_EXCLUDE),
+        Route::Notify<&CPagePermissions::OnSettingChanged>(COLBN_CHANGED, IDC_COLORBUTTON0, IDC_COLORBUTTON4),
+        Route::Control<&CPagePermissions::OnSettingChanged>(EN_CHANGE, IDC_PERMS_ACCOUNT0, IDC_PERMS_ACCOUNT4),
+        Route::Control<&CPagePermissions::OnSettingChanged>(CBN_SELCHANGE, IDC_PERMS_LEVEL0, IDC_PERMS_LEVEL4),
+        Route::Control<&CPagePermissions::OnSettingChanged>(EN_CHANGE, IDC_PERMS_EXCLUDE),
     };
     return entries;
 }

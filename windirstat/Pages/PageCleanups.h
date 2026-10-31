@@ -72,20 +72,20 @@ inline std::span<const RouteEntry> CPageCleanups::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Control<&OnLbnSelchangeList>(LBN_SELCHANGE, IDC_LIST),
-        Route::Control<&OnBnClickedEnabled>(BN_CLICKED, IDC_ENABLED),
-        Route::Control<&OnEnChangeTitle>(EN_CHANGE, IDC_TITLE),
-        Route::Control<&OnSomethingChanged>(BN_CLICKED, IDC_WAITFORCOMPLETION, IDC_WORKSFORUNCPATHS),
-        Route::Control<&OnSomethingChanged>(EN_CHANGE, IDC_COMMANDLINE),
-        Route::Control<&OnSomethingChanged>(BN_CLICKED, IDC_RECURSEINTOSUBDIRECTORIES),
-        Route::Control<&OnSomethingChanged>(BN_CLICKED, IDC_ASKFORCONFIRMATION),
-        Route::Control<&OnSomethingChanged>(BN_CLICKED, IDC_SHOWCONSOLEWINDOW),
-        Route::Control<&OnSomethingChanged>(CBN_SELENDOK, IDC_REFRESHPOLICY),
-        Route::Control<&OnBnClickedAdd>(BN_CLICKED, IDC_ADD_CLEANUP),
-        Route::Control<&OnBnClickedRemove>(BN_CLICKED, IDC_REMOVE_CLEANUP),
-        Route::Control<&OnBnClickedUp>(BN_CLICKED, IDC_UP),
-        Route::Control<&OnBnClickedDown>(BN_CLICKED, IDC_DOWN),
-        Route::Control<&OnBnClickedHelpbutton>(BN_CLICKED, IDC_HELPBUTTON),
+        Route::Control<&CPageCleanups::OnLbnSelchangeList>(LBN_SELCHANGE, IDC_LIST),
+        Route::Control<&CPageCleanups::OnBnClickedEnabled>(BN_CLICKED, IDC_ENABLED),
+        Route::Control<&CPageCleanups::OnEnChangeTitle>(EN_CHANGE, IDC_TITLE),
+        Route::Control<&CPageCleanups::OnSomethingChanged>(BN_CLICKED, IDC_WAITFORCOMPLETION, IDC_WORKSFORUNCPATHS),
+        Route::Control<&CPageCleanups::OnSomethingChanged>(EN_CHANGE, IDC_COMMANDLINE),
+        Route::Control<&CPageCleanups::OnSomethingChanged>(BN_CLICKED, IDC_RECURSEINTOSUBDIRECTORIES),
+        Route::Control<&CPageCleanups::OnSomethingChanged>(BN_CLICKED, IDC_ASKFORCONFIRMATION),
+        Route::Control<&CPageCleanups::OnSomethingChanged>(BN_CLICKED, IDC_SHOWCONSOLEWINDOW),
+        Route::Control<&CPageCleanups::OnSomethingChanged>(CBN_SELENDOK, IDC_REFRESHPOLICY),
+        Route::Control<&CPageCleanups::OnBnClickedAdd>(BN_CLICKED, IDC_ADD_CLEANUP),
+        Route::Control<&CPageCleanups::OnBnClickedRemove>(BN_CLICKED, IDC_REMOVE_CLEANUP),
+        Route::Control<&CPageCleanups::OnBnClickedUp>(BN_CLICKED, IDC_UP),
+        Route::Control<&CPageCleanups::OnBnClickedDown>(BN_CLICKED, IDC_DOWN),
+        Route::Control<&CPageCleanups::OnBnClickedHelpbutton>(BN_CLICKED, IDC_HELPBUTTON),
     };
     return entries;
 }

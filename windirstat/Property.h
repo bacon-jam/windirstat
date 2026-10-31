@@ -120,6 +120,26 @@ Setting<T>& ResolveBind(Setting<T>* setting) { return *setting; }
 template<typename T, typename Owner>
 Setting<T>& ResolveBind(Setting<T> Owner::* member, Owner& owner) { return owner.*member; }
 
+// Declare member specializations before any instantiation of Setting.
+template <> void Setting<int>::ReadPersistedProperty();
+template <> void Setting<int>::WritePersistedProperty();
+template <> void Setting<bool>::ReadPersistedProperty();
+template <> void Setting<bool>::WritePersistedProperty();
+template <> void Setting<double>::ReadPersistedProperty();
+template <> void Setting<double>::WritePersistedProperty();
+template <> void Setting<std::wstring>::ReadPersistedProperty();
+template <> void Setting<std::wstring>::WritePersistedProperty();
+template <> void Setting<std::vector<std::wstring>>::ReadPersistedProperty();
+template <> void Setting<std::vector<std::wstring>>::WritePersistedProperty();
+template <> void Setting<std::vector<int>>::ReadPersistedProperty();
+template <> void Setting<std::vector<int>>::WritePersistedProperty();
+template <> void Setting<WINDOWPLACEMENT>::ReadPersistedProperty();
+template <> void Setting<WINDOWPLACEMENT>::WritePersistedProperty();
+template <> void Setting<RECT>::ReadPersistedProperty();
+template <> void Setting<RECT>::WritePersistedProperty();
+template <> void Setting<COLORREF>::ReadPersistedProperty();
+template <> void Setting<COLORREF>::WritePersistedProperty();
+
 // explicit instantiation declaration
 extern template class Setting<int>;
 extern template class Setting<bool>;

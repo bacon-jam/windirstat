@@ -155,8 +155,8 @@ std::span<const RouteEntry> CPropertySheet::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnRequestedPageChanged>(WM_WDS_TAB_CHANGED),
-        Route::Window<&OnClose>(WM_CLOSE),
+        Route::Window<&CPropertySheet::OnRequestedPageChanged>(WM_WDS_TAB_CHANGED),
+        Route::Window<&CPropertySheet::OnClose>(WM_CLOSE),
     };
     return entries;
 }

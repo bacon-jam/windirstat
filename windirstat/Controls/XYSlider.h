@@ -78,16 +78,16 @@ inline std::span<const RouteEntry> CXySlider::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnGetDlgCode>(WM_GETDLGCODE),
-        Route::Window<&OnNcHitTest>(WM_NCHITTEST),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
-        Route::Window<&OnKillFocus>(WM_KILLFOCUS),
-        Route::Window<&OnPaint>(WM_PAINT),
-        Route::Window<&OnKeyDown>(WM_KEYDOWN),
-        Route::Window<&OnLButtonDown>(WM_LBUTTONDOWN),
-        Route::Window<&OnLButtonDblClk>(WM_LBUTTONDBLCLK),
-        Route::Window<&OnSetPos>(XY_SETPOS),
-        Route::Window<&OnGetPos>(XY_GETPOS),
+        Route::Window<&CXySlider::OnGetDlgCode>(WM_GETDLGCODE),
+        Route::Window<&CXySlider::OnNcHitTest>(WM_NCHITTEST),
+        Route::Window<&CXySlider::OnSetFocus>(WM_SETFOCUS),
+        Route::Window<&CXySlider::OnKillFocus>(WM_KILLFOCUS),
+        Route::Window<&CXySlider::OnPaint>(WM_PAINT),
+        Route::Window<&CXySlider::OnKeyDown>(WM_KEYDOWN),
+        Route::Window<&CXySlider::OnLButtonDown>(WM_LBUTTONDOWN),
+        Route::Window<&CXySlider::OnLButtonDblClk>(WM_LBUTTONDBLCLK),
+        Route::Window<&CXySlider::OnSetPos>(XY_SETPOS),
+        Route::Window<&CXySlider::OnGetPos>(XY_GETPOS),
     };
     return entries;
 }

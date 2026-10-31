@@ -21,7 +21,7 @@ inline std::span<const RouteEntry> CWinApp::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Command<&OnAppExit>(ID_APP_EXIT),
+        Route::Command<&CWinApp::OnAppExit>(ID_APP_EXIT),
     };
     return entries;
 }
@@ -32,8 +32,8 @@ inline std::span<const RouteEntry> CFrameWnd::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Command<&OnToggleViewBar>(ID_VIEW_TOOLBAR, ID_VIEW_STATUS_BAR),
-        Route::Update<&OnUpdateViewBarMenu>(ID_VIEW_TOOLBAR, ID_VIEW_STATUS_BAR),
+        Route::Command<&CFrameWnd::OnToggleViewBar>(ID_VIEW_TOOLBAR, ID_VIEW_STATUS_BAR),
+        Route::Update<&CFrameWnd::OnUpdateViewBarMenu>(ID_VIEW_TOOLBAR, ID_VIEW_STATUS_BAR),
     };
     return entries;
 }

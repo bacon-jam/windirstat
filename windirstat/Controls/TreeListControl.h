@@ -171,11 +171,11 @@ inline std::span<const RouteEntry> CTreeListControl::Routes()
 {
     static constexpr std::array entries
     {
-        Route::Window<&OnLButtonDown>(WM_LBUTTONDOWN),
-        Route::Window<&OnKeyDown>(WM_KEYDOWN),
-        Route::Window<&OnLButtonDblClk>(WM_LBUTTONDBLCLK),
-        Route::Window<&OnSetFocus>(WM_SETFOCUS),
-        Route::Notify<&OnHeaderEndDrag>(HDN_ENDDRAG, 0),
+        Route::Window<&CTreeListControl::OnLButtonDown>(WM_LBUTTONDOWN),
+        Route::Window<&CTreeListControl::OnKeyDown>(WM_KEYDOWN),
+        Route::Window<&CTreeListControl::OnLButtonDblClk>(WM_LBUTTONDBLCLK),
+        Route::Window<&CTreeListControl::OnSetFocus>(WM_SETFOCUS),
+        Route::Notify<&CTreeListControl::OnHeaderEndDrag>(HDN_ENDDRAG, 0),
     };
     return entries;
 }
