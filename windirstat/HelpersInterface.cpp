@@ -770,7 +770,7 @@ std::optional<std::wstring> RemoveSelectedHistoryEntry(const MSG* pMsg, CComboBo
     const int selection = comboBox.GetCurSel();
     if (selection == CB_ERR) return std::nullopt;
 
-    const std::wstring removed = comboBox.GetItemText(selection);
+    std::wstring removed = comboBox.GetItemText(selection);
     const auto entry = std::ranges::find(history, removed);
     if (entry == history.end() || comboBox.DeleteString(selection) == CB_ERR) return std::nullopt;
 

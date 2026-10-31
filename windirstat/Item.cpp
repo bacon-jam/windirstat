@@ -57,10 +57,11 @@ public:
         // Publish the batch before hashing; cancellation cleanup only publishes remaining children.
         Flush();
         if (m_duplicates.empty()) return;
-        for (CItem* child : m_duplicates) CFileDupeControl::Get()->ProcessDuplicate(child, m_queue);
+        m_parent->UpwardAddReadJobs(static_cast<ULONG>(m_duplicates.size()));
+        for (CItem* child : m_duplicates) m_queue->Push(child);
         m_duplicates.clear();
 
-        // Time the next batch from the end of hashing so slow hashes do not force single-item batches.
+        // Time the next batch after queuing its duplicate checks.
         m_lastFlush = GetTickCount64();
     }
 
@@ -1362,6 +1363,15 @@ void CItem::ScanItems(BlockingQueue<CItem*> * queue, FinderNtfsContext& contextN
         // Fetch item from queue
         CItem* const item = itemOpt.value();
 
+        // Published files need only hashing; refresh targets are marked undone before queuing.
+        if (item->IsTypeOrFlag(IT_FILE) && item->IsDone())
+        {
+            CFileDupeControl::Get()->ProcessDuplicate(item, queue);
+            item->GetParent()->UpwardSubtractReadJobs(1);
+            item->UpwardDrivePacman();
+            continue;
+        }
+
         // Mark the time we started evaluating this node
         item->ResetScanStartTime();
 
@@ -1500,6 +1510,8 @@ void CItem::ScanItemsFinalize(CItem* item)
         queue.pop_back();
         qitem->SetDone();
         if (qitem->IsLeaf()) continue;
+        // Workers have joined, so cancelled read jobs no longer own active work.
+        qitem->GetFolderInfo()->m_jobs = 0;
         for (const auto& child : qitem->GetChildren())
         {
             if (!child->IsDone()) queue.push_back(child);

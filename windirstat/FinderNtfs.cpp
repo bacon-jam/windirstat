@@ -158,16 +158,16 @@ bool FinderNtfsContext::LoadRoot(CItem* driveitem, BlockingQueue<CItem*>* queue)
     while (!volumePath.empty() && volumePath.back() == L'\\') volumePath.pop_back();
     if (!volumePath.empty() && volumePath[0] != L'\\' && volumePath[0] != L'/') volumePath.insert(0, L"\\\\.\\");
 
-    // Open volume handle with FILE_FLAG_OVERLAPPED for asynchronous I/O
-    const SmartPointer volumeHandle(CloseHandle, CreateFile(volumePath.c_str(), FILE_READ_DATA | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+    // Query volume metadata synchronously before starting overlapped reads.
+    const SmartPointer metadataHandle(CloseHandle, CreateFile(volumePath.c_str(), FILE_READ_DATA | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
-        FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, nullptr));
-    if (volumeHandle == INVALID_HANDLE_VALUE) return false;
+        FILE_FLAG_NO_BUFFERING, nullptr));
+    if (metadataHandle == INVALID_HANDLE_VALUE) return false;
 
     // Get volume information
     NTFS_VOLUME_DATA_BUFFER volumeInfo = {};
     ULONG bytesReturned;
-    if (!DeviceIoControl(volumeHandle, FSCTL_GET_NTFS_VOLUME_DATA, nullptr, 0, &volumeInfo, sizeof(volumeInfo), &bytesReturned, nullptr) ||
+    if (!DeviceIoControl(metadataHandle, FSCTL_GET_NTFS_VOLUME_DATA, nullptr, 0, &volumeInfo, sizeof(volumeInfo), &bytesReturned, nullptr) ||
         volumeInfo.BytesPerFileRecordSegment == 0) return false;
 
     // Get MFT retrieval pointers
@@ -190,22 +190,78 @@ bool FinderNtfsContext::LoadRoot(CItem* driveitem, BlockingQueue<CItem*>* queue)
         return false;
     }
 
-    // Extract data run origins and cluster counts
     RETRIEVAL_POINTERS_BUFFER* retrievalBuffer = ByteOffset<RETRIEVAL_POINTERS_BUFFER>(dataRunsBuffer.data(), 0);
     const std::span extents(retrievalBuffer->Extents, retrievalBuffer->ExtentCount);
-    if (extents.size() > std::numeric_limits<USHORT>::max()) return false;
-    std::vector<std::tuple<ULONGLONG, LONGLONG, ULONGLONG, ULONGLONG>> dataRuns(extents.size(), {});
+    if (extents.empty() || extents.back().NextVcn.QuadPart <= 0) return false;
+
+    // Split large runs on devices without a seek penalty.
+    // A contiguous MFT otherwise leaves all parsing on one worker, regardless of the scan-thread setting.
+    STORAGE_PROPERTY_QUERY storageQuery{ .PropertyId = StorageDeviceSeekPenaltyProperty,
+        .QueryType = PropertyStandardQuery };
+    DEVICE_SEEK_PENALTY_DESCRIPTOR seekPenalty = {};
+    bool parallelRanges = DeviceIoControl(metadataHandle, IOCTL_STORAGE_QUERY_PROPERTY,
+        &storageQuery, sizeof(storageQuery), &seekPenalty, sizeof(seekPenalty), &bytesReturned, nullptr) &&
+        bytesReturned >= sizeof(seekPenalty) && !seekPenalty.IncursSeekPenalty;
+    const size_t requestedWorkers = static_cast<size_t>(std::max(1, COptions::ScanningThreads.Obj()));
+    const ULONGLONG totalBytes = static_cast<ULONGLONG>(extents.back().NextVcn.QuadPart) * volumeInfo.BytesPerCluster;
+    constexpr ULONGLONG readBytes = 4ull * wds::Mi;
+    if (totalBytes == 0) return false;
+    const ULONGLONG rangeBytes = std::max(64ull * wds::Mi,
+        (((totalBytes - 1) / requestedWorkers + readBytes) / readBytes) * readBytes);
+    if (volumeInfo.BytesPerCluster == 0 || volumeInfo.BytesPerFileRecordSegment > readBytes ||
+        rangeBytes % volumeInfo.BytesPerCluster != 0 || rangeBytes % volumeInfo.BytesPerFileRecordSegment != 0)
+        return false;
+
+    // Preserve useful extent parallelism instead of adding readers to an already balanced layout.
+    // Split a few existing extents only when the largest exceeds twice the smallest.
+    // Small fragmented MFTs can still use their natural runs below the range-size minimum.
+    if ((totalBytes - 1) / rangeBytes + 1 < std::min(extents.size(), requestedWorkers)) parallelRanges = false;
+    if (parallelRanges && extents.size() > 1 && extents.size() <= requestedWorkers)
+    {
+        auto vcnStart = retrievalBuffer->StartingVcn.QuadPart;
+        ULONGLONG smallestRun = std::numeric_limits<ULONGLONG>::max();
+        ULONGLONG largestRun = 0;
+        for (const auto& extent : extents)
+        {
+            if (vcnStart < 0 || extent.NextVcn.QuadPart <= vcnStart) return false;
+            const auto clusters = static_cast<ULONGLONG>(extent.NextVcn.QuadPart - vcnStart);
+            smallestRun = std::min(smallestRun, clusters);
+            largestRun = std::max(largestRun, clusters);
+            vcnStart = extent.NextVcn.QuadPart;
+        }
+        parallelRanges = largestRun - smallestRun > smallestRun;
+    }
+    const ULONGLONG clustersPerRange = parallelRanges ? rangeBytes / volumeInfo.BytesPerCluster :
+        std::numeric_limits<ULONGLONG>::max();
+
+    // Extract data run origins and cluster counts, keeping every range record-aligned.
+    std::vector<std::tuple<ULONGLONG, LONGLONG, ULONGLONG, ULONGLONG>> dataRuns;
     auto vcnStart = retrievalBuffer->StartingVcn.QuadPart;
-    for (const auto [i, extent] : std::views::enumerate(extents))
+    for (const auto& extent : extents)
     {
         const auto vcnNext = extent.NextVcn.QuadPart;
-        dataRuns[i] = std::make_tuple(
-            static_cast<ULONGLONG>(vcnStart),
-            extent.Lcn.QuadPart,
-            static_cast<ULONGLONG>(vcnNext - vcnStart), 0ull
-        );
+        if (vcnStart < 0 || vcnNext <= vcnStart || extent.Lcn.QuadPart < 0 ||
+            static_cast<ULONGLONG>(vcnStart) * volumeInfo.BytesPerCluster % volumeInfo.BytesPerFileRecordSegment != 0 ||
+            static_cast<ULONGLONG>(vcnNext) * volumeInfo.BytesPerCluster % volumeInfo.BytesPerFileRecordSegment != 0)
+            return false;
+        const auto clusters = static_cast<ULONGLONG>(vcnNext - vcnStart);
+        for (ULONGLONG offset = 0; offset < clusters;)
+        {
+            const auto count = std::min(clusters - offset,
+                clustersPerRange - (static_cast<ULONGLONG>(vcnStart) + offset) % clustersPerRange);
+            dataRuns.emplace_back(static_cast<ULONGLONG>(vcnStart) + offset,
+                extent.Lcn.QuadPart + static_cast<LONGLONG>(offset), count, 0ull);
+            offset += count;
+        }
         vcnStart = vcnNext;
     }
+    if (dataRuns.empty()) return false;
+
+    // Share an overlapped handle across workers; every read supplies its own offset and event.
+    const SmartPointer volumeHandle(CloseHandle, CreateFile(volumePath.c_str(), FILE_READ_DATA | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+        FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, nullptr));
+    if (volumeHandle == INVALID_HANDLE_VALUE) return false;
 
     // Index base records directly by MFT record number across the full MFT capacity
     const size_t totalRecords = static_cast<size_t>(
@@ -214,17 +270,26 @@ bool FinderNtfsContext::LoadRoot(CItem* driveitem, BlockingQueue<CItem*>* queue)
     m_nameArenas.clear();
     m_parentToChildMap.clear();
 
-    // Each data run owns its extension records, child map, and contiguous filename arena.
+    // Each worker owns its extension records, child map, and contiguous filename arena.
     struct RecordPartition
     {
+        std::vector<size_t> runs;
         std::vector<std::pair<ULONGLONG, FileRecordBase>> extensionRecords;
         std::unordered_map<ULONGLONG, std::vector<FileRecordName>> children;
         std::vector<wchar_t> nameArena;
     };
-    std::vector<RecordPartition> partitions(dataRuns.size());
-    const auto runIndices = std::views::iota(size_t{}, dataRuns.size());
+    const size_t workerCount = parallelRanges ? static_cast<size_t>((totalBytes - 1) / rangeBytes + 1) :
+        std::min(dataRuns.size(), requestedWorkers);
+    std::vector<RecordPartition> partitions(workerCount);
+    for (const auto [i, run] : std::views::enumerate(dataRuns))
+    {
+        // Keep each SSD worker on a contiguous logical range, even across physical extents.
+        const size_t worker = parallelRanges ? static_cast<size_t>(std::get<0>(run) / clustersPerRange) : i % workerCount;
+        partitions[worker].runs.push_back(i);
+    }
+    const auto workerIndices = std::views::iota(size_t{}, workerCount);
     std::atomic<bool> readFailed = false;
-    const auto readRun = [&](const size_t runIndex)
+    const auto readWorker = [&](const size_t workerIndex)
     {
         // Page alignment satisfies FILE_FLAG_NO_BUFFERING for any sector size; pool threads do not retain it
         constexpr size_t bufferSize = 4ull * wds::Mi;
@@ -238,208 +303,211 @@ bool FinderNtfsContext::LoadRoot(CItem* driveitem, BlockingQueue<CItem*>* queue)
             return;
         }
 
-        auto& [runVcnStart, clusterStart, clusterCount, bytesReadFromRun] = dataRuns[runIndex];
-        auto& partition = partitions[runIndex];
-        partition.nameArena.reserve(static_cast<size_t>(
-            clusterCount * volumeInfo.BytesPerCluster / volumeInfo.BytesPerFileRecordSegment * 16));
+        auto& partition = partitions[workerIndex];
+        partition.nameArena.reserve(totalRecords / workerCount * 16);
 
-        // Enumerate over the data run in buffer-sized chunks
-        ULONGLONG bytesToRead = clusterCount * volumeInfo.BytesPerCluster - bytesReadFromRun;
-        LARGE_INTEGER fileOffset{ .QuadPart = static_cast<LONGLONG>(
-            clusterStart * volumeInfo.BytesPerCluster + bytesReadFromRun) };
-        const ULONGLONG mftRunOffset = runVcnStart * volumeInfo.BytesPerCluster;
-        ULONG bytesRead = 0;
-        for (; bytesToRead > 0;
-            bytesReadFromRun += bytesRead, bytesToRead -= bytesRead, fileOffset.QuadPart += bytesRead)
+        for (const size_t runIndex : partition.runs)
         {
-            if (readFailed || queue->IsPauseOrCancelRequested()) return;
+            auto& [runVcnStart, clusterStart, clusterCount, bytesReadFromRun] = dataRuns[runIndex];
 
-            // Animate pacman
-            driveitem->UpwardDrivePacman();
-
-            // Set file pointer for synchronous read
-            bytesRead = 0;
-            const ULONG bytesThisRead = static_cast<ULONG>(std::min<ULONGLONG>(bytesToRead, bufferSize));
-            OVERLAPPED overlapped = { .Offset = fileOffset.LowPart, .OffsetHigh = static_cast<DWORD>(fileOffset.HighPart), .hEvent = event };
-            if (ReadFile(volumeHandle, buffer.get(), bytesThisRead, &bytesRead, &overlapped) == 0)
+            // Enumerate over the data run in buffer-sized chunks
+            ULONGLONG bytesToRead = clusterCount * volumeInfo.BytesPerCluster - bytesReadFromRun;
+            LARGE_INTEGER fileOffset{ .QuadPart = static_cast<LONGLONG>(
+                clusterStart * volumeInfo.BytesPerCluster + bytesReadFromRun) };
+            const ULONGLONG mftRunOffset = runVcnStart * volumeInfo.BytesPerCluster;
+            ULONG bytesRead = 0;
+            for (; bytesToRead > 0;
+                bytesReadFromRun += bytesRead, bytesToRead -= bytesRead, fileOffset.QuadPart += bytesRead)
             {
-                if (GetLastError() != ERROR_IO_PENDING)
+                if (readFailed || queue->IsPauseOrCancelRequested()) return;
+
+                // Animate pacman
+                driveitem->UpwardDrivePacman();
+
+                // Set file pointer for synchronous read
+                bytesRead = 0;
+                const ULONG bytesThisRead = static_cast<ULONG>(std::min<ULONGLONG>(bytesToRead, bufferSize));
+                OVERLAPPED overlapped = { .Offset = fileOffset.LowPart, .OffsetHigh = static_cast<DWORD>(fileOffset.HighPart), .hEvent = event };
+                if (ReadFile(volumeHandle, buffer.get(), bytesThisRead, &bytesRead, &overlapped) == 0)
+                {
+                    if (GetLastError() != ERROR_IO_PENDING)
+                    {
+                        readFailed = true;
+                        return;
+                    }
+
+                    DWORD waitResult;
+                    while ((waitResult = WaitForSingleObject(event, 50)) == WAIT_TIMEOUT)
+                    {
+                        if (readFailed || queue->IsPauseOrCancelRequested()) break;
+                    }
+                    if (waitResult != WAIT_OBJECT_0) CancelIoEx(volumeHandle, &overlapped);
+                    if (!GetOverlappedResult(volumeHandle, &overlapped, &bytesRead, true))
+                    {
+                        if (!queue->IsPauseOrCancelRequested()) readFailed = true;
+                        return;
+                    }
+                }
+                if (bytesRead == 0)
                 {
                     readFailed = true;
                     return;
                 }
 
-                DWORD waitResult;
-                while ((waitResult = WaitForSingleObject(event, 50)) == WAIT_TIMEOUT)
+                for (ULONG offset = 0; offset + volumeInfo.BytesPerFileRecordSegment <= bytesRead; offset += volumeInfo.BytesPerFileRecordSegment)
                 {
-                    if (readFailed || queue->IsPauseOrCancelRequested()) break;
-                }
-                if (waitResult != WAIT_OBJECT_0) CancelIoEx(volumeHandle, &overlapped);
-                if (!GetOverlappedResult(volumeHandle, &overlapped, &bytesRead, true))
-                {
-                    if (!queue->IsPauseOrCancelRequested()) readFailed = true;
-                    return;
-                }
-            }
-            if (bytesRead == 0)
-            {
-                readFailed = true;
-                return;
-            }
+                    // Process MFT record inline
+                    const auto fileRecord = ByteOffset<FILE_RECORD>(buffer.get(), offset);
 
-            for (ULONG offset = 0; offset + volumeInfo.BytesPerFileRecordSegment <= bytesRead; offset += volumeInfo.BytesPerFileRecordSegment)
-            {
-                // Process MFT record inline
-                const auto fileRecord = ByteOffset<FILE_RECORD>(buffer.get(), offset);
+                    // Bounds check for fixup array access
+                    constexpr auto MFT_RECORD_SECTOR_SIZE = 512u;
+                    if (!fileRecord->IsValid() ||
+                        fileRecord->UsaCount != volumeInfo.BytesPerFileRecordSegment / MFT_RECORD_SECTOR_SIZE + 1 ||
+                        fileRecord->UsaOffset < sizeof(FILE_RECORD) || fileRecord->UsaOffset % sizeof(USHORT) != 0 ||
+                        fileRecord->UsaOffset + sizeof(USHORT) * fileRecord->UsaCount >
+                            volumeInfo.BytesPerFileRecordSegment ||
+                        fileRecord->FirstAttributeOffset >= volumeInfo.BytesPerFileRecordSegment) continue;
 
-                // Bounds check for fixup array access
-                constexpr auto MFT_RECORD_SECTOR_SIZE = 512u;
-                if (!fileRecord->IsValid() ||
-                    fileRecord->UsaCount != volumeInfo.BytesPerFileRecordSegment / MFT_RECORD_SECTOR_SIZE + 1 ||
-                    fileRecord->UsaOffset < sizeof(FILE_RECORD) || fileRecord->UsaOffset % sizeof(USHORT) != 0 ||
-                    fileRecord->UsaOffset + sizeof(USHORT) * fileRecord->UsaCount >
-                        volumeInfo.BytesPerFileRecordSegment ||
-                    fileRecord->FirstAttributeOffset >= volumeInfo.BytesPerFileRecordSegment) continue;
-
-                // Apply fixup (NTFS MFTs always have a 512 byte sector size)
-                constexpr auto wordsPerSector = MFT_RECORD_SECTOR_SIZE / sizeof(USHORT);
-                const auto recordWords = reinterpret_cast<PUSHORT>(ByteOffset<UCHAR>(buffer.get(), offset));
-                bool skipRecord = false;
-                if (fileRecord->UsaCount > 0)
-                {
-                    const std::span fixupSpan(ByteOffset<USHORT>(fileRecord, fileRecord->UsaOffset), fileRecord->UsaCount);
-                    const auto usn = fixupSpan[0];
-                    for (const auto [idx, fixup] : std::views::enumerate(fixupSpan.subspan(1)))
+                    // Apply fixup (NTFS MFTs always have a 512 byte sector size)
+                    constexpr auto wordsPerSector = MFT_RECORD_SECTOR_SIZE / sizeof(USHORT);
+                    const auto recordWords = reinterpret_cast<PUSHORT>(ByteOffset<UCHAR>(buffer.get(), offset));
+                    bool skipRecord = false;
+                    if (fileRecord->UsaCount > 0)
                     {
-                        const auto sectorEnd = recordWords + (idx + 1) * wordsPerSector - 1;
-                        if (*sectorEnd == usn) *sectorEnd = fixup;
-                        else { skipRecord = true; break; }
-                    }
-                }
-
-                // Skip if corrupt record detected
-                if (skipRecord) [[unlikely]] continue;
-
-                // Only process records that have valid headers and are in use
-                if (!fileRecord->IsValid() || !fileRecord->IsInUse()) continue;
-                const auto currentRecord = (mftRunOffset + bytesReadFromRun + offset) / volumeInfo.BytesPerFileRecordSegment;
-                const bool isExtensionRecord = fileRecord->BaseFileRecordNumber > 0;
-                const auto baseRecordIndex = isExtensionRecord ? fileRecord->BaseFileRecordNumber : currentRecord;
-                const ULONGLONG baseRecordSequence = isExtensionRecord ?
-                    fileRecord->BaseFileRecordSequence : fileRecord->SequenceNumber;
-                const auto baseFileReference = baseRecordIndex | (baseRecordSequence << 48);
-
-                // Primary records fill their own slot while extension records are merged after all runs finish
-                FileRecordBase localRecord{};
-                const bool isPrimary = !isExtensionRecord && currentRecord < m_baseFileRecords.size();
-                FileRecordBase& baseRecord = isPrimary ?
-                    m_baseFileRecords[static_cast<size_t>(currentRecord)] : localRecord;
-                baseRecord.IsPresent = true;
-
-                for (auto [curAttribute, endAttribute] = ATTRIBUTE_RECORD::bounds(fileRecord, volumeInfo.BytesPerFileRecordSegment); curAttribute <
-                    endAttribute && curAttribute->TypeCode != AttributeEnd && curAttribute->RecordLength > 0; curAttribute = curAttribute->next())
-                {
-                    if (curAttribute->TypeCode == AttributeStandardInformation)
-                    {
-                        if (curAttribute->IsNonResident()) continue;
-                        const auto si = ByteOffset<STANDARD_INFORMATION>(curAttribute, curAttribute->Form.Resident.ValueOffset);
-                        baseRecord.HasStandardInfo = true;
-                        baseRecord.LastModifiedTime = si->LastModificationTime;
-                        baseRecord.Attributes |= si->FileAttributes;
-                        if (fileRecord->IsDirectory()) baseRecord.Attributes |= FILE_ATTRIBUTE_DIRECTORY;
-                        if (baseRecord.Attributes == 0) baseRecord.Attributes = FILE_ATTRIBUTE_NORMAL;
-                    }
-                    else if (curAttribute->TypeCode == AttributeFileName)
-                    {
-                        if (curAttribute->IsNonResident()) continue;
-                        const auto fn = ByteOffset<FILE_NAME>(curAttribute, curAttribute->Form.Resident.ValueOffset);
-                        // FileName is not null-terminated so compare by length and characters
-                        if (fn->IsShortNameRecord() ||
-                            (fn->FileNameLength == 1 && fn->FileName[0] == L'.') ||
-                            (fn->FileNameLength == 2 && fn->FileName[0] == L'.' && fn->FileName[1] == L'.')) continue;
-
-                        const ULONG nameOffset = static_cast<ULONG>(partition.nameArena.size());
-                        partition.nameArena.append_range(std::wstring_view(fn->FileName, fn->FileNameLength));
-                        auto& children = partition.children.try_emplace(fn->ParentDirectory).first->second;
-                        children.emplace_back(baseFileReference, nameOffset, fn->FileNameLength, static_cast<USHORT>(runIndex));
-                    }
-                    else if (curAttribute->TypeCode == AttributeData)
-                    {
-                        // Named data streams
-                        if (const WCHAR* streamName = ByteOffset<WCHAR>(curAttribute, curAttribute->NameOffset); curAttribute->NameLength > 0)
+                        const std::span fixupSpan(ByteOffset<USHORT>(fileRecord, fileRecord->UsaOffset), fileRecord->UsaCount);
+                        const auto usn = fixupSpan[0];
+                        for (const auto [idx, fixup] : std::views::enumerate(fixupSpan.subspan(1)))
                         {
-                            const std::wstring_view name(streamName, curAttribute->NameLength);
+                            const auto sectorEnd = recordWords + (idx + 1) * wordsPerSector - 1;
+                            if (*sectorEnd == usn) *sectorEnd = fixup;
+                            else { skipRecord = true; break; }
+                        }
+                    }
 
-                            // WofCompressedData: correct physical size for WOF-compressed files
-                            if (name == L"WofCompressedData" &&
-                                (!curAttribute->IsNonResident() || curAttribute->Form.Nonresident.LowestVcn == 0))
+                    // Skip if corrupt record detected
+                    if (skipRecord) [[unlikely]] continue;
+
+                    // Only process records that have valid headers and are in use
+                    if (!fileRecord->IsValid() || !fileRecord->IsInUse()) continue;
+                    const auto currentRecord = (mftRunOffset + bytesReadFromRun + offset) / volumeInfo.BytesPerFileRecordSegment;
+                    const bool isExtensionRecord = fileRecord->BaseFileRecordNumber > 0;
+                    const auto baseRecordIndex = isExtensionRecord ? fileRecord->BaseFileRecordNumber : currentRecord;
+                    const ULONGLONG baseRecordSequence = isExtensionRecord ?
+                        fileRecord->BaseFileRecordSequence : fileRecord->SequenceNumber;
+                    const auto baseFileReference = baseRecordIndex | (baseRecordSequence << 48);
+
+                    // Primary records fill their own slot while extension records are merged after all runs finish
+                    FileRecordBase localRecord{};
+                    const bool isPrimary = !isExtensionRecord && currentRecord < m_baseFileRecords.size();
+                    FileRecordBase& baseRecord = isPrimary ?
+                        m_baseFileRecords[static_cast<size_t>(currentRecord)] : localRecord;
+                    baseRecord.IsPresent = true;
+
+                    for (auto [curAttribute, endAttribute] = ATTRIBUTE_RECORD::bounds(fileRecord, volumeInfo.BytesPerFileRecordSegment); curAttribute <
+                        endAttribute && curAttribute->TypeCode != AttributeEnd && curAttribute->RecordLength > 0; curAttribute = curAttribute->next())
+                    {
+                        if (curAttribute->TypeCode == AttributeStandardInformation)
+                        {
+                            if (curAttribute->IsNonResident()) continue;
+                            const auto si = ByteOffset<STANDARD_INFORMATION>(curAttribute, curAttribute->Form.Resident.ValueOffset);
+                            baseRecord.HasStandardInfo = true;
+                            baseRecord.LastModifiedTime = si->LastModificationTime;
+                            baseRecord.Attributes |= si->FileAttributes;
+                            if (fileRecord->IsDirectory()) baseRecord.Attributes |= FILE_ATTRIBUTE_DIRECTORY;
+                            if (baseRecord.Attributes == 0) baseRecord.Attributes = FILE_ATTRIBUTE_NORMAL;
+                        }
+                        else if (curAttribute->TypeCode == AttributeFileName)
+                        {
+                            if (curAttribute->IsNonResident()) continue;
+                            const auto fn = ByteOffset<FILE_NAME>(curAttribute, curAttribute->Form.Resident.ValueOffset);
+                            // FileName is not null-terminated so compare by length and characters
+                            if (fn->IsShortNameRecord() ||
+                                (fn->FileNameLength == 1 && fn->FileName[0] == L'.') ||
+                                (fn->FileNameLength == 2 && fn->FileName[0] == L'.' && fn->FileName[1] == L'.')) continue;
+
+                            const ULONG nameOffset = static_cast<ULONG>(partition.nameArena.size());
+                            partition.nameArena.append_range(std::wstring_view(fn->FileName, fn->FileNameLength));
+                            auto& children = partition.children.try_emplace(fn->ParentDirectory).first->second;
+                            children.emplace_back(baseFileReference, nameOffset, fn->FileNameLength, static_cast<USHORT>(workerIndex));
+                        }
+                        else if (curAttribute->TypeCode == AttributeData)
+                        {
+                            // Named data streams
+                            if (const WCHAR* streamName = ByteOffset<WCHAR>(curAttribute, curAttribute->NameOffset); curAttribute->NameLength > 0)
                             {
-                                baseRecord.PhysicalSize = curAttribute->IsNonResident() ?
-                                    curAttribute->Form.Nonresident.AllocatedLength :
-                                    (curAttribute->Form.Resident.ValueLength + 7) & ~7;
-                                baseRecord.HasWofData = true;
+                                const std::wstring_view name(streamName, curAttribute->NameLength);
+
+                                // WofCompressedData: correct physical size for WOF-compressed files
+                                if (name == L"WofCompressedData" &&
+                                    (!curAttribute->IsNonResident() || curAttribute->Form.Nonresident.LowestVcn == 0))
+                                {
+                                    baseRecord.PhysicalSize = curAttribute->IsNonResident() ?
+                                        curAttribute->Form.Nonresident.AllocatedLength :
+                                        (curAttribute->Form.Resident.ValueLength + 7) & ~7;
+                                    baseRecord.HasWofData = true;
+                                }
+
+                                // Dropbox (and compatible tools) set this stream to mark items as ignored
+                                if (COptions::ExcludeDropboxIgnored && name == L"com.dropbox.ignored" &&
+                                    (!curAttribute->IsNonResident() || curAttribute->Form.Nonresident.LowestVcn == 0))
+                                {
+                                    baseRecord.HasIgnoredStream = (curAttribute->IsNonResident() ?
+                                        curAttribute->Form.Nonresident.FileSize : curAttribute->Form.Resident.ValueLength) != 0;
+                                }
+
+                                continue;
                             }
 
-                            // Dropbox (and compatible tools) set this stream to mark items as ignored
-                            if (COptions::ExcludeDropboxIgnored && name == L"com.dropbox.ignored" &&
-                                (!curAttribute->IsNonResident() || curAttribute->Form.Nonresident.LowestVcn == 0))
+                            // Default stream processing
+                            if (curAttribute->IsNonResident())
                             {
-                                baseRecord.HasIgnoredStream = (curAttribute->IsNonResident() ?
-                                    curAttribute->Form.Nonresident.FileSize : curAttribute->Form.Resident.ValueLength) != 0;
+                                if (curAttribute->Form.Nonresident.LowestVcn != 0) continue;
+                                baseRecord.HasData = true;
+                                baseRecord.LogicalSize = curAttribute->Form.Nonresident.FileSize;
+
+                                if (const ULONGLONG physSize = (curAttribute->IsCompressed() || curAttribute->IsSparse()) ?
+                                    curAttribute->Form.Nonresident.Compressed :
+                                        curAttribute->Form.Nonresident.AllocatedLength;
+                                    !baseRecord.HasWofData && physSize > 0)
+                                {
+                                    baseRecord.PhysicalSize = physSize;
+                                }
                             }
-
-                            continue;
-                        }
-
-                        // Default stream processing
-                        if (curAttribute->IsNonResident())
-                        {
-                            if (curAttribute->Form.Nonresident.LowestVcn != 0) continue;
-                            baseRecord.HasData = true;
-                            baseRecord.LogicalSize = curAttribute->Form.Nonresident.FileSize;
-
-                            if (const ULONGLONG physSize = (curAttribute->IsCompressed() || curAttribute->IsSparse()) ?
-                                curAttribute->Form.Nonresident.Compressed :
-                                    curAttribute->Form.Nonresident.AllocatedLength;
-                                !baseRecord.HasWofData && physSize > 0)
+                            else
                             {
-                                baseRecord.PhysicalSize = physSize;
+                                baseRecord.HasData = true;
+                                baseRecord.LogicalSize = curAttribute->Form.Resident.ValueLength;
+                                if (!baseRecord.HasWofData)
+                                    baseRecord.PhysicalSize = (curAttribute->Form.Resident.ValueLength + 7) & ~7;
                             }
                         }
-                        else
+                        else if (curAttribute->TypeCode == AttributeReparsePoint)
                         {
-                            baseRecord.HasData = true;
-                            baseRecord.LogicalSize = curAttribute->Form.Resident.ValueLength;
-                            if (!baseRecord.HasWofData)
-                                baseRecord.PhysicalSize = (curAttribute->Form.Resident.ValueLength + 7) & ~7;
+                            if (curAttribute->IsNonResident()) continue;
+                            const auto fn = ByteOffset<Finder::REPARSE_DATA_BUFFER>(curAttribute, curAttribute->Form.Resident.ValueOffset);
+                            baseRecord.ReparsePointTag = fn->ReparseTag;
+
+                            // Treat WOF files as compressed
+                            if (fn->ReparseTag == IO_REPARSE_TAG_WOF)
+                            {
+                                baseRecord.Attributes |= FILE_ATTRIBUTE_COMPRESSED;
+                            }
+
+                            if (Finder::IsJunction(*fn))
+                            {
+                                baseRecord.ReparsePointTag = IO_REPARSE_TAG_JUNCTION_POINT;
+                            }
                         }
                     }
-                    else if (curAttribute->TypeCode == AttributeReparsePoint)
-                    {
-                        if (curAttribute->IsNonResident()) continue;
-                        const auto fn = ByteOffset<Finder::REPARSE_DATA_BUFFER>(curAttribute, curAttribute->Form.Resident.ValueOffset);
-                        baseRecord.ReparsePointTag = fn->ReparseTag;
 
-                        // Treat WOF files as compressed
-                        if (fn->ReparseTag == IO_REPARSE_TAG_WOF)
-                        {
-                            baseRecord.Attributes |= FILE_ATTRIBUTE_COMPRESSED;
-                        }
-
-                        if (Finder::IsJunction(*fn))
-                        {
-                            baseRecord.ReparsePointTag = IO_REPARSE_TAG_JUNCTION_POINT;
-                        }
-                    }
+                    if (!isPrimary) partition.extensionRecords.emplace_back(baseRecordIndex, localRecord);
                 }
-
-                if (!isPrimary) partition.extensionRecords.emplace_back(baseRecordIndex, localRecord);
             }
         }
     };
     do
     {
-        std::for_each(std::execution::par, runIndices.begin(), runIndices.end(), readRun);
+        std::for_each(std::execution::par, workerIndices.begin(), workerIndices.end(), readWorker);
         // Only the registered worker reports idle after all parallel reads have drained.
         queue->WaitIfSuspended();
         if (readFailed)
@@ -453,7 +521,7 @@ bool FinderNtfsContext::LoadRoot(CItem* driveitem, BlockingQueue<CItem*>* queue)
         return std::get<3>(run) < std::get<2>(run) * volumeInfo.BytesPerCluster;
     }));
 
-    // Adopt the first run's child map outright, since an unfragmented MFT has no other runs to combine.
+    // Adopt the first worker's child map outright before combining the remaining partitions.
     m_nameArenas.resize(partitions.size());
     if (!partitions.empty())
     {
@@ -489,7 +557,7 @@ bool FinderNtfsContext::LoadRoot(CItem* driveitem, BlockingQueue<CItem*>* queue)
             merged.append_range(children | std::views::as_rvalue);
         }
 
-        // Release each run's storage as soon as it has been combined.
+        // Release each worker's storage as soon as it has been combined.
         partition = {};
     }
 

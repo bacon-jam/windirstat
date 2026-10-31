@@ -153,6 +153,67 @@ function Test-StopAndRescan {
     Assert-GraphRendered $app | Out-Null
 }
 
+function Test-DuplicateQueueCancellation {
+    param($Context, $Case)
+    $root = $Context.Fixture
+    $folder = Join-Path $root 'pending'
+    [IO.Directory]::CreateDirectory($folder) | Out-Null
+    $stable = @(foreach ($member in 'a', 'b') { New-TestFile (Join-Path $root "stable-$member.bin") 4096 19 })
+    $app = Start-TestApp @($root) -Settings @{
+        Options = @{ ScanningThreads = 1; FileHashAlgorithm = 4; SampleLargeFiles = 0 }
+        DupeView = @{ ScanForDuplicates = 1 }
+    }
+    $list = Get-AppList $app -AllFiles
+    $payload = [byte[]]::new(8MB)
+    [Random]::new(1729).NextBytes($payload)
+    $files = @(foreach ($index in 0..63) {
+        $path = Join-Path $folder "file-$index.bin"
+        [IO.File]::WriteAllBytes($path, $payload)
+        $path
+    })
+    $hash = (Get-FileHash -LiteralPath $files[0] -Algorithm SHA512).Hash.Substring(0, 32)
+    $stableHash = (Get-FileHash -LiteralPath $stable[0] -Algorithm SHA512).Hash.Substring(0, 32)
+    Select-AppRows $app $list @($folder)
+    Invoke-AppCommand $app 'ID_REFRESH_SELECTED'
+
+    # A serial correctness control keeps the hash backlog observable after all 512 MiB are listed.
+    Wait-Until {
+        $row = Find-AppRow $list $folder
+        ([NativeListViewHelper]::GetItemTexts($list, 6)[$row] -replace '\D', '') -eq '64' -and
+            (Get-AppCommandState $app 'ID_SCAN_SUSPEND').Enabled
+    } 'All files are published while duplicate hashing still keeps the scan active' | Out-Null
+    Invoke-AppCommand $app 'ID_SCAN_SUSPEND'
+    Wait-Until { (Get-AppCommandState $app 'ID_SCAN_RESUME').Enabled } `
+        'Queued duplicate hashing suspends after directory enumeration' | Out-Null
+    Assert-Equal ([NativeListViewHelper]::GetItemTexts($list, 6)[(Find-AppRow $list $folder)] -replace '\D', '') '64' `
+        'Suspension occurs after every flat-folder file has been published'
+    Invoke-AppCommand $app 'ID_SCAN_STOP'
+    Wait-AppIdle $app
+    Assert-True (-not (Get-AppCommandState $app 'ID_SCAN_RESUME').Enabled) `
+        'Cancelling suspended duplicate work leaves no resumable workers'
+
+    [IO.File]::Delete($files[-1])
+    $files = @($files | Select-Object -SkipLast 1)
+    $unique = New-TestFile (Join-Path $folder 'after-stop.bin') 257
+    Select-AppRows $app $list @($folder)
+    Invoke-AppCommand $app 'ID_REFRESH_SELECTED'
+    Wait-AppIdle $app
+    $rows = Save-AppReport $app 'duplicate-queue-refreshed'
+    Assert-Sequence @(Get-ReportFiles $rows | ForEach-Object Name | Sort-Object) @($stable + $files + $unique | Sort-Object) `
+        'Selected refresh replaces cancelled files while preserving the untouched branch'
+    Assert-Equal ([long]$rows[0].'Logical Size') (63L * 8MB + 257 + 8192) `
+        'Cancelled hash jobs do not duplicate recursive byte totals'
+    $duplicates = Save-AppReport $app 'duplicate-queue-matches' -Command 'ID_SAVE_DUPLICATES'
+    Assert-Sequence @($duplicates.Name | Sort-Object) @($stable + $files | Sort-Object) `
+        'Refresh finishes all pending matches once and excludes the new unique-size file'
+    Assert-Equal @($duplicates | Where-Object {
+        $_.'Hash Prefix' -ine $(if ($_.Name -in $stable) { $stableHash } else { $hash }) -or
+            $_.'Sampled Hash' -ine 'false'
+    }).Count 0 'Refreshed groups match independently calculated whole-file SHA512 hashes'
+    Assert-True (-not (Get-AppCommandState $app 'ID_SCAN_STOP').Enabled) `
+        'Selected refresh settles after replacing cancelled duplicate work'
+}
+
 function Test-ScanResizeOverlap {
     param($Context, $Case)
     $root = New-StressTree
@@ -267,6 +328,9 @@ foreach ($mode in @(@{ Suffix = ''; Threads = 1 }, @{ Suffix = '.parallel'; Thre
 }
 Register-Scenario lifecycle.stop-suspended Lifecycle 'Cancellation of suspended workers permits a clean rescan' `
     Test-StopAndRescan -Tags Desktop,Race -Requires Windows,Desktop -Data @{ Threads = 8; Suspended = $true }
+Register-Scenario lifecycle.duplicate-queue-cancellation Lifecycle `
+    'Serial cancellation after enumeration and selected refresh preserve duplicate results' `
+    Test-DuplicateQueueCancellation -Tags Desktop,Race -Requires Windows,Desktop
 Register-Scenario lifecycle.resize-overlap Lifecycle `
     'Live resize and scan suspension overlap without stranding rendering' `
     Test-ScanResizeOverlap -Tags Desktop,Race,Rendering -Requires Windows,Desktop

@@ -11,9 +11,16 @@
 function Test-DuplicateContent {
     param($Context, $Case)
     $root = New-TestTree
-    foreach ($size in 0, 4096, 4097, 1MB, (1MB + 1)) {
+    foreach ($size in 0, 4095, 4096, 4097, (64KB - 1), 64KB, (64KB + 1), 1MB, (1MB + 1)) {
         $first = New-TestFile (Join-Path $root "boundaries\$size-a.bin") $size (71 + $size)
         Copy-Item -LiteralPath $first -Destination (Join-Path $root "boundaries\$size-b.bin")
+        if ($size -eq 0) { continue }
+        $bytes = [IO.File]::ReadAllBytes($first)
+        foreach ($offset in 0, ($size - 1)) {
+            $bytes[$offset] = $bytes[$offset] -bxor 1
+            [IO.File]::WriteAllBytes((Join-Path $root "boundaries\$size-different-$offset.bin"), $bytes)
+            $bytes[$offset] = $bytes[$offset] -bxor 1
+        }
     }
     $first = New-TestFile (Join-Path $root 'full-hash\first.bin') 2MB 319
     $second = Join-Path $root 'full-hash\second.bin'
@@ -29,7 +36,9 @@ function Test-DuplicateContent {
     $groups = @($before | Group-Object Hash | Where-Object Count -GT 1)
     $expected = @($groups.Group.Path | Where-Object { $_ -ine $locked } |
         ForEach-Object { Get-NormalPath $_ } | Sort-Object)
-    $runner = New-TestRunner @{ Options = @{ FileHashAlgorithm = $Case.Algorithm; SampleLargeFiles = 0 } }
+    $runner = New-TestRunner @{ Options = @{
+        ScanningThreads = 8; FileHashAlgorithm = $Case.Algorithm; SampleLargeFiles = 0
+    } }
     $unreadable = [IO.File]::Open($locked, 'Open', 'ReadWrite', [IO.FileShare]::Write)
     try {
         foreach ($format in 'csv', 'json') {
@@ -38,6 +47,8 @@ function Test-DuplicateContent {
                 'Whole-file duplicate verification handles size boundaries and excludes unreadable members'
             Assert-Equal @($rows | Where-Object { [string]$_.'Sampled Hash' -ine 'false' }).Count 0 `
                 'Full-file duplicates are not labeled as sampled matches'
+            Assert-Equal @($rows.'Hash Prefix' | Sort-Object -Unique).Count $groups.Count `
+                'Distinct whole-file duplicate groups retain distinct exported hashes'
             foreach ($group in $groups) {
                 $members = @($rows | Where-Object { (Get-NormalPath $_.Name) -in @($group.Group.Path |
                     ForEach-Object { Get-NormalPath $_ }) })

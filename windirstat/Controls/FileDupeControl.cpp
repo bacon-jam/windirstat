@@ -59,7 +59,9 @@ void CFileDupeControl::ProcessDuplicate(CItem* item, BlockingQueue<CItem*>* queu
         const ITEMTYPE hashLevel = hashLevels[level];
         const auto size = itemToHash->GetSizeLogical();
         const bool sampled = m_sampleLargeFiles && hashLevel == ITHASH_LARGE && size > 64ull * wds::Mi;
-        const size_t maxHashLevel = size <= HashThreshold(ITHASH_SMALL) ? 0 :
+        // Hash small xxHash candidates once; retain prefix rejection for cryptographic hashes.
+        const size_t maxHashLevel = size <= HashThreshold(ITHASH_SMALL) ||
+            (COptions::FileHashAlgorithm.Obj() == HASH_XXHASH && size <= 64ull * wds::Ki) ? 0 :
             size <= HashThreshold(ITHASH_MEDIUM) ? 1 : 2;
 
         // Skip if already marked as unhashable or hashed at this level
@@ -69,7 +71,11 @@ void CFileDupeControl::ProcessDuplicate(CItem* item, BlockingQueue<CItem*>* queu
         // Compute the hash for the file
         lock.unlock();
         std::vector<BYTE> hash;
-        try { hash = itemToHash->GetFileHash(HashThreshold(hashLevel), queue, sampled); }
+        try
+        {
+            hash = itemToHash->GetFileHash(HashThreshold(maxHashLevel == 0 && size > HashThreshold(ITHASH_SMALL) ?
+                ITHASH_LARGE : hashLevel), queue, sampled);
+        }
         catch (...)
         {
             lock.lock();
@@ -87,13 +93,12 @@ void CFileDupeControl::ProcessDuplicate(CItem* item, BlockingQueue<CItem*>* queu
         }
 
         // Add this hash to the tracker
-        HashKey key{ size, std::move(hash) };
-        auto& entry = m_hashTrackers[level][key];
+        auto& [key, entry] = *m_hashTrackers[level].try_emplace(HashKey{ size, std::move(hash) }).first;
         entry.emplace_back(itemToHash);
         if (entry.size() < 2) continue;
 
         // Promote the first matching pair once, then only each new arrival.
-        if (level != maxHashLevel)
+        if (level < maxHashLevel)
         {
             m_pendingHashes.emplace_back(itemToHash, level + 1);
             if (entry.size() == 2) m_pendingHashes.emplace_back(entry.front(), level + 1);

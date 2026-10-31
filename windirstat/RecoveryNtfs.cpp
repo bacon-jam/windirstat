@@ -606,7 +606,7 @@ void NtfsRecovery::Scan(Progress& progress, ScanResult& result,
             if (parent == parents.end() || parent->second.sequence != (reference >> NtfsSequenceShift) ||
                 !seen.insert(number).second)
             {
-                path = L"?\\" + path;
+                path.insert(0, L"?\\");
                 break;
             }
             path = parent->second.name + L"\\" + path;

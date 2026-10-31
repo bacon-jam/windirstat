@@ -69,7 +69,7 @@ void CIconHandler::Initialize()
                     const auto i = control->FindListItem(item);
                     if (i == -1 || !item->IsVisible()) return;
                     *icon = iconTmp;
-                    if (desc != nullptr) *desc = descTmp;
+                    if (desc != nullptr) *desc = std::move(descTmp);
                     control->RedrawItems(i, i);
                 });
             }

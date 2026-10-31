@@ -137,11 +137,10 @@ std::wregex CFiltering::CompilePattern(const std::wstring& pattern, const bool u
 {
     // In regex mode, normalize lone backslashes in path-based patterns so
     // users can type V:\Folder without having to escape the path separators.
-    const std::wstring normalized = useRegex && pathFilter ? NormalizePathRegex(pattern) : pattern;
+    std::wstring expression = useRegex ? (pathFilter ? NormalizePathRegex(pattern) : pattern) : GlobToRegex(pattern, false);
 
     // Directory filters apply to the directory itself and everything below it, whatever characters names contain.
     const bool remote = IsRemotePattern(pattern);
-    std::wstring expression = useRegex ? normalized : GlobToRegex(normalized, false);
     if (pathFilter)
     {
         if (HasUnescapedTrailingDollar(expression)) expression.pop_back();
@@ -242,7 +241,7 @@ std::wstring_view CFiltering::WithoutTrailingBackslashes(std::wstring_view path)
     return path;
 }
 
-bool CFiltering::MatchesAnyPath(const std::wstring& path, const std::vector<std::wregex>& patterns)
+bool CFiltering::MatchesAnyPath(const std::wstring_view path, const std::vector<std::wregex>& patterns)
 {
     if (patterns.empty()) return false;
 
@@ -307,7 +306,7 @@ bool CFiltering::CanReuseDirectoryMatch(const std::wstring_view childPrefix)
     if (childPrefix.empty() || IncludeDirsRegex.empty() || !IncludeDirsMatchDescendants) return false;
 
     // Appending a separator to the trimmed path preserves word-boundary assertions.
-    return MatchesAnyPath(std::wstring(WithoutTrailingBackslashes(childPrefix)), IncludeDirsRegex);
+    return MatchesAnyPath(WithoutTrailingBackslashes(childPrefix), IncludeDirsRegex);
 }
 
 bool CFiltering::IsFilteredOut(const std::wstring_view fileName, const std::wstring& filePath,
@@ -356,7 +355,7 @@ bool CFiltering::IsFilteredOut(const CItem* item)
 {
     if (!FilterActive) return false;
     if (item->IsTypeOrFlag(IT_FILE))
-        return IsFilteredOut(item->GetName(), IncludeDirsRegex.empty() ? std::wstring() : item->GetPath(),
+        return IsFilteredOut(item->GetNameView(), IncludeDirsRegex.empty() ? std::wstring() : item->GetPath(),
             item->GetSizeLogical(), item->GetLastChange());
     return IsFilteredOut(item->GetPath(), item->IsTypeOrFlag(ITF_REMOTE) && item->IsScanRoot());
 }

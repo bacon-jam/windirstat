@@ -96,6 +96,40 @@ For your safety, install WinDirStat only through the Microsoft Store link and pa
 
 WinDirStat can be built with Visual Studio 2022 or later. A Visual Studio solution file can be loaded from `windirstat.sln`.
 
+### Indexing benchmarks
+
+Build the application once to obtain the local xxHash dependency, then compare an explicit Git baseline with a snapshot of the current working tree:
+
+```powershell
+pwsh -File tests/Benchmark-Indexing.ps1 -BaselineRef 324dc5b -PlatformToolset v143
+```
+
+Both versions use the same compiler, Release x64 configuration, dependency files and scanner harness. The default run uses a 1 GiB synthetic MFT, 12,000 real files, two warmup pairs and 12 measured pairs, including duplicate detection. Keep the machine idle; use `-OutputFolder` with a **new directory outside synchronized storage** for steadier results. Allow about 8 GiB plus build artifacts. Builds and fixtures are retained for inspection.
+
+The scanner lane times the production `LoadRoot` reader, parser and merge code with real unbuffered, overlapped file reads. It verifies every filename, parent, reference, size, timestamp and hardlink after each sample. Cases cover contiguous and separated extents, skewed layouts with 87.5% of the records in the first extent, a small fragmented MFT, a single-worker control, and simulated seek-penalty/unknown-device policies. Samples also record read-worker invocations, so a concurrency change is visible. Simulating that policy does not simulate physical HDD latency. The application lane times launch through folder scan, tree construction, CSV export and exit. Every report is checked against the generated tree and compared across versions, including all exported fields. This lane uses ordinary folder traversal, not the raw-volume fast path.
+
+Trials alternate baseline/candidate order, shuffle cases using a recorded seed, exclude warmups, and retain all measured samples. `summary.txt` and `summary.json` report medians, median absolute deviations, CPU time, peak memory and a paired bootstrap 95% interval for geometric mean time reduction. Application memory is observed while the process is alive and may miss its final peak; unavailable samples remain null. Scanner memory is the process high-water mark read immediately after `LoadRoot`, before verification. Positive reduction means faster. A result is classified as faster/slower only when the whole interval exceeds the default 3% practical threshold; otherwise it is equivalent within that margin or inconclusive. These are per-case exploratory intervals, not a guarantee across machines or a correction for multiple comparisons.
+
+The duplicate lane uses full-file xxHash by default (`-HashAlgorithm 5`); select `-HashAlgorithm 2` for SHA-256. It compares identical 8,193-byte files in one flat folder and across 64 folders, and includes unique sizes (no hashing), varied sizes, identical small files, distinct files of one size, and 2 MiB files with matching prefixes but different later content. Identical and early-distinct files at 16, 32, and 64 KiB measure the benefit and extra-read cost of small-file hashing cutoffs. Expected groups come from independently computed whole-file SHA-256 hashes. Every result must contain exactly the expected members without splitting or merging content groups; SHA-256 runs also check digest prefixes directly. Every exported field is compared across versions. Input creation and verification are outside timing. Small duplicate corpora are capped at 16,384 files each, the cutoff corpora at 8,192, and the 2 MiB corpus at 128 files; default inputs occupy about 2.3 GiB. Sampled hashing is covered by correctness tests, not this lane.
+
+Use `-Lane Scanner`, `-Lane Application`, or `-Lane Duplicates` to isolate a timing scope. The duplicate lane builds both full applications without creating synthetic MFT files:
+
+```powershell
+pwsh -File tests/Benchmark-Indexing.ps1 -BaselineRef 324dc5b -PlatformToolset v143 -Lane Duplicates `
+    -Threads 8 -RequireImprovement duplicates-flat -FailOnRegression
+```
+
+Use `-Threads 16` for a separate worker-count comparison; both builds always receive the same value. More workers can increase I/O contention, so compare all cases.
+
+`-RecordCount 1024 -FileCount 100 -Pairs 6 -Warmups 1` is a tooling smoke test, not representative performance evidence. Exit code 1 means execution/correctness failed. `-FailOnRegression` and `-RequireImprovement scanner-contiguous` add performance gates (exit code 2); an inconclusive result cannot satisfy an improvement gate. Without a gate, regressions are reported without making the completed experiment fail.
+
+```powershell
+pwsh -File tests/Test-Benchmark.ps1
+pwsh -File tests/Test-Scanner.ps1 -PlatformToolset v143 -RecordCount 1048576
+```
+
+These are repeated warm measurements, not cold initial-drive scans or GUI readiness timings. Whole-volume speed still needs an elevated, controlled NTFS-volume experiment with equivalent contents, settings and cache conditions. Do not compare the scanner's `LoadRoot` time directly with Everything's filename-only indexing or claim a whole-drive speedup from the fixture results alone.
+
 ## Contributors
 
 You can contribute by responding to issues, [developing](https://github.com/windirstat/windirstat/wiki/Developers) source code, or developing [translations](https://github.com/windirstat/windirstat/wiki/Contribute-Translation).

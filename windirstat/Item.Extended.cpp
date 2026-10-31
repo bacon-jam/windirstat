@@ -1050,9 +1050,9 @@ std::vector<BYTE> CItem::GetFileHash(const ULONGLONG hashSizeLimit, BlockingQueu
             if (iHashResult != 0) break;
         }
 
-        // Stop if we've reached the hash size limit
+        // Stop at the hash limit or EOF; a short native file read also marks EOF.
         totalBytesHashed += iReadBytes;
-        if (totalBytesHashed >= bytesToHash || iReadResult == S_FALSE) break;
+        if (totalBytesHashed >= bytesToHash || iReadResult == S_FALSE || (!fileStream && iReadBytes < bytesToRead)) break;
 
         queue->WaitIfSuspended();
     }

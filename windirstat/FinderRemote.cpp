@@ -518,7 +518,7 @@ static RemoteAzureSpec RemoteAzureAuthorize(StorageSource& source, const RemoteT
     {
         if (!query.empty()) query += L'&';
         query += name + L"=" + RemoteWide(RemoteEncode(value));
-        canonical += L"\n" + name + L":" + value;
+        canonical.append(L"\n").append(name).append(L":").append(value);
     }
 
     // Use the connection's key or SAS token without including credentials in scan identities.

@@ -1243,7 +1243,7 @@ void CWinDirStatModel::StartScanningEngine(std::vector<CItem*> items)
 
     // Start a thread so we do not hang the message loop during inserts.
     // Lambda captures assume the model exists for the duration of the scan.
-    m_thread = std::jthread([this,items, visualInfo] () mutable
+    m_thread = std::jthread([this, items = std::move(items), visualInfo = std::move(visualInfo)] () mutable
     {
         std::unordered_map<const CItem*, FinderBasicContext> folderContexts;
 
@@ -1378,7 +1378,8 @@ void CWinDirStatModel::StartScanningEngine(std::vector<CItem*> items)
         constexpr size_t maxReported = 10;
         std::wstring scanErrors;
         std::unordered_set<std::wstring> reported;
-        std::vector<CItem*> pending = items.empty() ? std::vector{ GetRootItem() } : items;
+        std::vector<CItem*> pending = std::move(items);
+        if (pending.empty()) pending.push_back(GetRootItem());
         while (!pending.empty() && reported.size() <= maxReported)
         {
             auto* item = pending.back(); pending.pop_back();
